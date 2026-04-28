@@ -906,11 +906,19 @@ export default function Home() {
           border-color: #999;
         }
 
-        @media (max-width: 1080px) {
+        @media (max-width: 900px) {
+          .page {
+            height: auto;
+            min-height: 100%;
+            overflow: visible;
+            padding: 16px 12px;
+          }
+
           .layout {
             flex-direction: column;
-            max-width: 1000px;
+            max-width: 100%;
             height: auto;
+            gap: 16px;
           }
 
           .leftPanel,
@@ -918,8 +926,58 @@ export default function Home() {
             width: 100%;
           }
 
+          .leftPanel {
+            overflow: visible;
+          }
+
           .rightPanel {
             justify-content: flex-start;
+            align-items: stretch;
+          }
+
+          .rightStack {
+            width: 100%;
+            max-width: 100%;
+            gap: 10px;
+          }
+
+          .titleBlock h1 {
+            font-size: clamp(2rem, 7vw, 2.8rem);
+          }
+
+          .formatButtons {
+            gap: 8px;
+          }
+
+          .formatButton,
+          .downloadButton {
+            min-height: 44px;
+            font-size: 0.85rem;
+            letter-spacing: 0.06em;
+          }
+
+          .previewCard {
+            height: auto;
+          }
+
+          .previewFrame {
+            width: 100%;
+            max-width: 100%;
+          }
+
+          .previewCanvas {
+            width: 100%;
+            height: auto;
+          }
+
+          .validationCard {
+            padding: 12px;
+          }
+
+          .downloadButton {
+            position: sticky;
+            bottom: 12px;
+            z-index: 5;
           }
         }
 
