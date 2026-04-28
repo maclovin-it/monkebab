@@ -56,15 +56,43 @@ function buildPreviewLines(pain: string, viande: string, crudites: string[], sau
   return [first, second, ...cruditeLines, fourth];
 }
 
-function splitSauceText(ctx: CanvasRenderingContext2D, sauceText: string, maxWidth: number) {
+const canvasLetterSpacing: number = 0.75;
+
+function measureTextWidth(ctx: CanvasRenderingContext2D, text: string, letterSpacing: number) {
+  return ctx.measureText(text).width + Math.max(0, text.length - 1) * letterSpacing;
+}
+
+function fillTextWithLetterSpacing(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, letterSpacing: number) {
+  if (letterSpacing === 0 || text.length <= 1) {
+    ctx.fillText(text, x, y);
+    return;
+  }
+
+  const originalAlign = ctx.textAlign;
+  let startX = x;
+  const textWidth = measureTextWidth(ctx, text, letterSpacing);
+
+  if (originalAlign === 'center') {
+    startX = x - textWidth / 2;
+  } else if (originalAlign === 'right' || originalAlign === 'end') {
+    startX = x - textWidth;
+  }
+
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+    ctx.fillText(char, startX, y);
+    startX += ctx.measureText(char).width + letterSpacing;
+  }
+}
+
+function splitSauceText(ctx: CanvasRenderingContext2D, sauceText: string, maxWidth: number, letterSpacing: number) {
   const parts = sauceText.split(', ');
   const lines: string[] = [];
   let current = '';
 
   parts.forEach((part) => {
     const candidate = current ? `${current}, ${part}` : part;
-    ctx.font = ctx.font;
-    if (current && ctx.measureText(candidate).width > maxWidth) {
+    if (current && measureTextWidth(ctx, candidate, letterSpacing) > maxWidth) {
       lines.push(current);
       current = part;
     } else {
@@ -264,7 +292,14 @@ function getFontLimits(width: number, height: number) {
   return { min: 46, max: 86 };
 }
 
-function fitFontSize(ctx: CanvasRenderingContext2D, lines: string[], width: number, height: number) {
+function fitFontSize(
+  ctx: CanvasRenderingContext2D,
+  lines: string[],
+  width: number,
+  height: number,
+  letterSpacing: number,
+  fontWeight: number
+) {
   const paddingX = width * 0.1;
   const paddingY = height * 0.12;
   const maxWidth = width - paddingX * 2;
@@ -277,9 +312,12 @@ function fitFontSize(ctx: CanvasRenderingContext2D, lines: string[], width: numb
   let primaryFont = max;
   let primaryLineHeight = Math.round(primaryFont * 1.28);
   while (primaryFont >= min) {
-    ctx.font = `bold ${primaryFont}px Anton, sans-serif`;
+    ctx.font = `${fontWeight} ${primaryFont}px Anton, sans-serif`;
     const primaryHeight = primaryLineHeight * primaryLines.length;
-    const primaryMaxWidth = primaryLines.reduce((maxW, line) => Math.max(maxW, ctx.measureText(line).width), 0);
+    const primaryMaxWidth = primaryLines.reduce(
+      (maxW, line) => Math.max(maxW, measureTextWidth(ctx, line, letterSpacing)),
+      0
+    );
 
     if (primaryMaxWidth <= maxWidth && primaryHeight <= maxHeight * 0.72) {
       break;
@@ -296,14 +334,14 @@ function fitFontSize(ctx: CanvasRenderingContext2D, lines: string[], width: numb
   const sauceScale = sauceCount <= 1 ? 1 : Math.max(0.7, 1 - 0.06 * (sauceCount - 1));
   let sauceFont = Math.round(primaryFont * sauceScale);
   let sauceLineHeight = Math.round(sauceFont * 1.28);
-  let sauceLines = splitSauceText(ctx, sauceLine, maxWidth);
+  let sauceLines = splitSauceText(ctx, sauceLine, maxWidth, letterSpacing);
 
   while (sauceFont >= min) {
-    ctx.font = `bold ${sauceFont}px Anton, sans-serif`;
-    sauceLines = splitSauceText(ctx, sauceLine, maxWidth);
+    ctx.font = `${fontWeight} ${sauceFont}px Anton, sans-serif`;
+    sauceLines = splitSauceText(ctx, sauceLine, maxWidth, letterSpacing);
     const sauceHeight = sauceLineHeight * sauceLines.length;
     const totalHeight = primaryLineHeight * primaryLines.length + sauceHeight;
-    const sauceMaxWidth = sauceLines.reduce((maxW, line) => Math.max(maxW, ctx.measureText(line).width), 0);
+    const sauceMaxWidth = sauceLines.reduce((maxW, line) => Math.max(maxW, measureTextWidth(ctx, line, letterSpacing)), 0);
 
     if (sauceMaxWidth <= maxWidth && totalHeight <= maxHeight) {
       break;
@@ -315,13 +353,16 @@ function fitFontSize(ctx: CanvasRenderingContext2D, lines: string[], width: numb
 
   sauceFont = Math.max(sauceFont, min);
   sauceLineHeight = Math.round(sauceFont * 1.28);
-  sauceLines = splitSauceText(ctx, sauceLine, maxWidth);
+  sauceLines = splitSauceText(ctx, sauceLine, maxWidth, letterSpacing);
 
   const totalHeight = primaryLineHeight * primaryLines.length + sauceLineHeight * sauceLines.length;
   return { primaryFont, sauceFont, primaryLineHeight, sauceLineHeight, totalHeight, sauceLines };
 }
 
-function renderCanvas(ctx: CanvasRenderingContext2D, lines: string[], width: number, height: number) {
+function renderCanvas(ctx: CanvasRenderingContext2D, lines: string[], width: number, height: number, isPreview = false) {
+  const letterSpacing = isPreview ? 0 : canvasLetterSpacing;
+  const fontWeight = isPreview ? 500 : 600;
+
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, width, height);
   ctx.strokeStyle = '#666';
@@ -331,18 +372,19 @@ function renderCanvas(ctx: CanvasRenderingContext2D, lines: string[], width: num
   ctx.fillStyle = '#fff';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  const { primaryFont, sauceFont, primaryLineHeight, sauceLineHeight, totalHeight, sauceLines } = fitFontSize(ctx, lines, width, height);
+  const { primaryFont, sauceFont, primaryLineHeight, sauceLineHeight, totalHeight, sauceLines } =
+    fitFontSize(ctx, lines, width, height, letterSpacing, fontWeight);
 
   const startY = Math.max(height * 0.46 - totalHeight / 2, height * 0.14);
 
   lines.slice(0, 3).forEach((line, index) => {
-    ctx.font = `bold ${primaryFont}px Anton, sans-serif`;
-    ctx.fillText(line, width / 2, startY + index * primaryLineHeight);
+    ctx.font = `${fontWeight} ${primaryFont}px Anton, sans-serif`;
+    fillTextWithLetterSpacing(ctx, line, width / 2, startY + index * primaryLineHeight, letterSpacing);
   });
 
   sauceLines.forEach((line, index) => {
-    ctx.font = `bold ${sauceFont}px Anton, sans-serif`;
-    ctx.fillText(line, width / 2, startY + primaryLineHeight * 3 + index * sauceLineHeight);
+    ctx.font = `${fontWeight} ${sauceFont}px Anton, sans-serif`;
+    fillTextWithLetterSpacing(ctx, line, width / 2, startY + primaryLineHeight * 3 + index * sauceLineHeight, letterSpacing);
   });
 
   const footerFont = Math.round(primaryFont * 0.45);
@@ -353,7 +395,7 @@ function renderCanvas(ctx: CanvasRenderingContext2D, lines: string[], width: num
   if (height === 1080) footerY = height - 90;
   if (height === 1920) footerY = height - 150;
 
-  ctx.fillText('monkebab.com', width / 2, footerY);
+  ctx.fillText('monkebab.xyz', width / 2, footerY);
 }
 
 function createCanvasImage(lines: string[], width: number, height: number) {
@@ -365,7 +407,7 @@ function createCanvasImage(lines: string[], width: number, height: number) {
     throw new Error('Impossible de créer le contexte canvas');
   }
 
-  renderCanvas(ctx, lines, width, height);
+  renderCanvas(ctx, lines, width, height, false);
 
   return canvas;
 }
@@ -428,7 +470,7 @@ export default function Home() {
     canvas.height = height;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    renderCanvas(ctx, previewLines, width, height);
+    renderCanvas(ctx, previewLines, width, height, true);
   }, [previewLines, format]);
 
   const selectPain = (item: string) => {
