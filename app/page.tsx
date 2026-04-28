@@ -939,6 +939,7 @@ export default function Home() {
             width: 100%;
             max-width: 100%;
             gap: 10px;
+            justify-content: flex-start;
           }
 
           .titleBlock h1 {
@@ -979,11 +980,16 @@ export default function Home() {
             bottom: 12px;
             z-index: 5;
           }
-        }
 
-        @media (max-width: 700px) {
+          .saucesGrid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+          }
+
           .saucesGrid .option {
-            font-size: 0.78rem;
+            font-size: 0.82rem;
+            min-height: 48px;
+            padding: 0 10px;
           }
         }
 
