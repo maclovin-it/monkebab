@@ -954,7 +954,7 @@ export default function Home() {
           }
 
           .titleBlock {
-            margin-bottom: 20px;
+            margin-bottom: 32px;
           }
 
           .titleBlock p {
