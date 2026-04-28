@@ -909,12 +909,14 @@ export default function Home() {
         @media (max-width: 900px) {
           .page {
             height: auto;
-            min-height: 100%;
-            overflow: visible;
+            min-height: auto;
+            overflow-x: hidden;
+            overflow-y: auto;
             padding: 16px 12px;
           }
 
           .layout {
+            display: flex;
             flex-direction: column;
             max-width: 100%;
             height: auto;
@@ -926,13 +928,15 @@ export default function Home() {
             width: 100%;
           }
 
-          .leftPanel {
+          .leftPanel,
+          .rightPanel {
             overflow: visible;
           }
 
           .rightPanel {
             justify-content: flex-start;
             align-items: stretch;
+            height: auto;
           }
 
           .rightStack {
@@ -940,6 +944,7 @@ export default function Home() {
             max-width: 100%;
             gap: 10px;
             justify-content: flex-start;
+            height: auto;
           }
 
           .titleBlock h1 {
@@ -948,6 +953,7 @@ export default function Home() {
 
           .formatButtons {
             gap: 8px;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
           }
 
           .formatButton,
@@ -964,6 +970,7 @@ export default function Home() {
           .previewFrame {
             width: 100%;
             max-width: 100%;
+            min-height: 300px;
           }
 
           .previewCanvas {
@@ -975,6 +982,17 @@ export default function Home() {
             padding: 12px;
           }
 
+          .validationScoreRow {
+            font-size: 1.1rem;
+            gap: 8px;
+          }
+
+          .validationLabel {
+            white-space: normal;
+            overflow: visible;
+            text-overflow: unset;
+          }
+
           .downloadButton {
             position: sticky;
             bottom: 12px;
@@ -983,19 +1001,23 @@ export default function Home() {
 
           .saucesGrid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 8px;
+            gap: 10px;
           }
 
           .saucesGrid .option {
             font-size: 0.82rem;
-            min-height: 48px;
+            min-height: 44px;
             padding: 0 10px;
+            letter-spacing: 0.06em;
+            line-height: 1.1;
+            white-space: normal;
+            word-break: break-word;
           }
         }
 
         @media (max-width: 760px) {
           .saucesGrid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(2, minmax(0, 1fr));
           }
 
           .titleBlock h1 {
