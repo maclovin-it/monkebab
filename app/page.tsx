@@ -365,7 +365,7 @@ function renderCanvas(
   lines: string[],
   width: number,
   height: number,
-  options: { validation?: ValidationData; isPreview?: boolean } = {}
+  options: { validation?: ValidationData } = {}
 ) {
   const letterSpacing = 0;
   const fontWeight = 500;
@@ -383,11 +383,11 @@ function renderCanvas(
   const { primaryFont, sauceFont, primaryLineHeight, sauceLineHeight, totalHeight, sauceLines } =
     fitFontSize(ctx, lines, width, height, letterSpacing, fontWeight);
 
-  const validationFont = validation ? Math.max(20, Math.round(primaryFont * 0.35)) : 0;
-  const validationTextLineHeight = validation ? Math.round(validationFont * 1.15) : 0;
-  const validationBarHeight = validation ? Math.max(8, Math.round(height * 0.006)) : 0;
-  const validationSpacing = validation ? Math.round(primaryFont * 0.28) : 0;
-  const validationBarGap = validation ? 10 : 0;
+  const validationFont = validation ? Math.max(28, Math.round(primaryFont * 0.45)) : 0;
+  const validationTextLineHeight = validation ? Math.round(validationFont * 1.2) : 0;
+  const validationBarHeight = validation ? Math.max(14, Math.round(primaryFont * 0.16)) : 0;
+  const validationSpacing = validation ? Math.round(primaryFont * 0.36) : 0;
+  const validationBarGap = validation ? 14 : 0;
   const validationBlockHeight = validation
     ? validationTextLineHeight + validationBarHeight + validationSpacing + validationBarGap
     : 0;
@@ -410,7 +410,7 @@ function renderCanvas(
     ctx.font = `700 ${validationFont}px Anton, sans-serif`;
     ctx.fillText(`${validation.emoji} ${validation.score}%`, width / 2, validationY);
 
-    const barWidth = Math.min(width * 0.45, width - width * 0.2);
+    const barWidth = Math.min(width * 0.55, width - width * 0.18);
     const barX = width / 2 - barWidth / 2;
     const barY = validationY + validationTextLineHeight + validationBarGap;
 
@@ -513,8 +513,8 @@ export default function Home() {
     canvas.height = height;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    renderCanvas(ctx, previewLines, width, height);
-  }, [previewLines, format]);
+    renderCanvas(ctx, previewLines, width, height, { validation });
+  }, [previewLines, format, validation]);
 
   const selectPain = (item: string) => {
     setPain(item);
