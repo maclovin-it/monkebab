@@ -981,6 +981,14 @@ export default function Home() {
           }
         }
 
+        @media (max-width: 700px) {
+          .saucesGrid .option {
+            font-size: 0.78rem;
+            min-height: 42px;
+            padding: 0 10px;
+          }
+        }
+
         @media (max-width: 760px) {
           .saucesGrid {
             grid-template-columns: repeat(3, minmax(0, 1fr));
