@@ -174,7 +174,7 @@ function TshirtContent() {
         /* Texte positionné sur la poitrine du t-shirt noir */
         .chestText {
           position: absolute;
-          top: 47%;
+          top: 38%;
           left: 50%;
           transform: translateX(-50%);
           width: 45%;
@@ -194,15 +194,15 @@ function TshirtContent() {
 
         .linePain,
         .lineViande {
-          font-size: 1.05rem;
+          font-size: 1.2rem;
         }
 
         .lineCrudites {
-          font-size: 0.85rem;
+          font-size: 0.98rem;
         }
 
         .lineSauces {
-          font-size: 0.72rem;
+          font-size: 0.82rem;
         }
 
         .controls {
