@@ -13,10 +13,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Monkebab",
-  description: "Crée ton kebab parfait",
+  title: "Mon Kebab",
+  description: "Crée ta commande de kebab en ligne !",
   icons: {
-    icon: "/LOGO.png",
+    icon: "/icon.png",
   },
 }
 

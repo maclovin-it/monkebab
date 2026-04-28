@@ -462,6 +462,12 @@ export default function Home() {
     [pain, viande, crudites, sauces]
   );
 
+  const previewFrameSizes = {
+    '1:1': { width: '320px', height: '320px' },
+    '4:5': { width: '320px', height: '400px' },
+    '9:16': { width: '320px', height: '568px' },
+  } as const;
+
   useEffect(() => {
     const canvas = previewCanvasRef.current;
     if (!canvas) return;
@@ -591,7 +597,7 @@ export default function Home() {
             </div>
 
             <div className="previewCard">
-              <div className="previewFrame" style={{ aspectRatio: format === '1:1' ? '1 / 1' : format === '4:5' ? '4 / 5' : '9 / 16' }}>
+              <div className="previewFrame" style={previewFrameSizes[format]}>
                 <canvas ref={previewCanvasRef} className="previewCanvas" />
               </div>
             </div>
@@ -759,7 +765,9 @@ export default function Home() {
         }
 
         .previewFrame {
-          width: min(100%, 420px);
+          width: auto;
+          height: auto;
+          max-width: 100%;
           max-height: 100%;
           background: #000;
           border: 1px solid #666;
@@ -772,12 +780,11 @@ export default function Home() {
         }
 
         .previewCanvas {
-          width: auto;
-          height: auto;
           max-width: 100%;
           max-height: 100%;
+          width: auto;
+          height: auto;
           display: block;
-          object-fit: contain;
         }
 
         .formatButtons {
@@ -802,6 +809,12 @@ export default function Home() {
           letter-spacing: 0.08em;
           cursor: pointer;
           transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+        }
+
+        .formatButton.active {
+          background: #fff;
+          color: #000;
+          border-color: #fff;
         }
 
         .downloadButton {
