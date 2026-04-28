@@ -519,42 +519,32 @@ export default function Home() {
 
   const shareCanvasImage = async (lines: string[], format: ExportFormat, validation?: ValidationData) => {
     const shareText = "T’en penses quoi de ma compo ? Viens montrer la tienne sur monkebab.xyz";
-    const shareUrl = 'https://monkebab.xyz';
     const [width, height] = exportSizes[format];
     const canvas = createCanvasImage(lines, width, height, validation);
 
     if (navigator.share) {
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png', 1));
-      const shareData: ShareData = {
-        title: 'Mon Kebab',
-        text: shareText,
-        url: shareUrl,
-      };
-
       if (blob) {
         const file = new File([blob], 'monkebab.png', { type: 'image/png' });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
           try {
-            await navigator.share({ ...shareData, files: [file] });
+            await navigator.share({
+              title: 'Mon Kebab',
+              text: shareText,
+              files: [file],
+            });
             return;
           } catch {
-            // fallback to text share
+            // fallback if file share fails
           }
         }
-      }
-
-      try {
-        await navigator.share(shareData);
-        return;
-      } catch {
-        // fallback to clipboard if share fails
       }
     }
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
       try {
         await navigator.clipboard.writeText(shareText);
-        setShareFeedback('Message copié');
+        setShareFeedback('Image non partageable ici, message copié');
         window.setTimeout(() => setShareFeedback(''), 2000);
         return;
       } catch {
@@ -562,7 +552,7 @@ export default function Home() {
       }
     }
 
-    setShareFeedback('Message copié');
+    setShareFeedback('Image non partageable ici, message copié');
     window.setTimeout(() => setShareFeedback(''), 2000);
   };
 
