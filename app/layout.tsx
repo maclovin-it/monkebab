@@ -12,10 +12,13 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Mon Kebab",
-  description: "Ta commande de kebab en ligne",
-};
+export const metadata = {
+  title: "Monkebab",
+  description: "Crée ton kebab parfait",
+  icons: {
+    icon: "/logo.png",
+  },
+}
 
 export default function RootLayout({
   children,
