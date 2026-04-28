@@ -669,6 +669,8 @@ export default function Home() {
 
         .layout {
           width: 100%;
+          max-width: 1400px;
+          margin: 0 auto;
           display: grid;
           grid-template-columns: 60% 40%;
           gap: 24px;
@@ -709,7 +711,7 @@ export default function Home() {
 
         .rightStack {
           width: 100%;
-          max-width: 620px;
+          max-width: 440px;
           height: 100%;
           min-height: 0;
           display: flex;
