@@ -174,7 +174,7 @@ function TshirtContent() {
         /* Texte positionné sur la poitrine du t-shirt noir */
         .chestText {
           position: absolute;
-          top: 38%;
+          top: 30%;
           left: 50%;
           transform: translateX(-50%);
           width: 45%;
