@@ -953,6 +953,10 @@ export default function Home() {
             font-size: clamp(2.2rem, 7vw, 3rem);
           }
 
+          .titleBlock {
+            margin-bottom: 20px;
+          }
+
           .titleBlock p {
             font-size: 0.95rem;
             line-height: 1.2;
