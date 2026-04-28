@@ -920,20 +920,22 @@ export default function Home() {
             flex-direction: column;
             max-width: 100%;
             height: auto;
-            gap: 16px;
+            gap: 18px;
           }
 
           .leftPanel,
           .rightPanel {
             width: 100%;
-          }
-
-          .leftPanel,
-          .rightPanel {
+            min-height: auto;
             overflow: visible;
           }
 
+          .leftPanel {
+            order: 1;
+          }
+
           .rightPanel {
+            order: 2;
             justify-content: flex-start;
             align-items: stretch;
             height: auto;
@@ -942,13 +944,45 @@ export default function Home() {
           .rightStack {
             width: 100%;
             max-width: 100%;
-            gap: 10px;
+            gap: 12px;
             justify-content: flex-start;
             height: auto;
           }
 
           .titleBlock h1 {
-            font-size: clamp(2rem, 7vw, 2.8rem);
+            font-size: clamp(2.2rem, 7vw, 3rem);
+          }
+
+          .titleBlock p {
+            font-size: 0.95rem;
+            line-height: 1.2;
+          }
+
+          .accordionHeader {
+            padding: 14px 16px;
+            font-size: 0.95rem;
+          }
+
+          .accordionBody {
+            padding: 14px 16px 18px;
+            gap: 12px;
+          }
+
+          .saucesGrid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            grid-auto-rows: minmax(44px, auto);
+          }
+
+          .saucesGrid .option {
+            font-size: 0.82rem;
+            min-height: 44px;
+            padding: 0 12px;
+            letter-spacing: 0.05em;
+            line-height: 1.15;
+            white-space: normal;
+            word-break: break-word;
+            text-align: center;
           }
 
           .formatButtons {
@@ -959,11 +993,12 @@ export default function Home() {
           .formatButton,
           .downloadButton {
             min-height: 44px;
-            font-size: 0.85rem;
+            font-size: 0.88rem;
             letter-spacing: 0.06em;
           }
 
           .previewCard {
+            width: 100%;
             height: auto;
           }
 
@@ -971,6 +1006,7 @@ export default function Home() {
             width: 100%;
             max-width: 100%;
             min-height: 300px;
+            margin: 0 auto;
           }
 
           .previewCanvas {
@@ -979,12 +1015,13 @@ export default function Home() {
           }
 
           .validationCard {
-            padding: 12px;
+            width: 100%;
+            padding: 14px;
           }
 
           .validationScoreRow {
-            font-size: 1.1rem;
-            gap: 8px;
+            font-size: 1.05rem;
+            gap: 10px;
           }
 
           .validationLabel {
@@ -994,24 +1031,10 @@ export default function Home() {
           }
 
           .downloadButton {
+            width: 100%;
             position: sticky;
             bottom: 12px;
-            z-index: 5;
-          }
-
-          .saucesGrid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
-          }
-
-          .saucesGrid .option {
-            font-size: 0.82rem;
-            min-height: 44px;
-            padding: 0 10px;
-            letter-spacing: 0.06em;
-            line-height: 1.1;
-            white-space: normal;
-            word-break: break-word;
+            z-index: 10;
           }
         }
 
@@ -1021,7 +1044,7 @@ export default function Home() {
           }
 
           .titleBlock h1 {
-            font-size: clamp(2.4rem, 8vw, 3.6rem);
+            font-size: clamp(2rem, 8vw, 2.8rem);
           }
 
           .accordionHeader {
