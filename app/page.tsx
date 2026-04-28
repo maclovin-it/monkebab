@@ -36,6 +36,7 @@ const exportSizes = {
 } as const;
 
 type ExportFormat = keyof typeof exportSizes;
+type ValidationData = { emoji: string; score: number; ratio: number };
 const exportFormats: ExportFormat[] = ['1:1', '4:5', '9:16'];
 type SectionKey = 'PAIN' | 'VIANDE' | 'CRUDITES' | 'SAUCES';
 const sectionOrder: SectionKey[] = ['PAIN', 'VIANDE', 'CRUDITES', 'SAUCES'];
@@ -133,19 +134,19 @@ function calculateValidationScore(pain: string, viande: string, crudites: string
     Blanche: 100,
     Harissa: 90,
     Algérienne: 100,
-    Barbecue: 70,
-    Mayonnaise: 60,
+    Barbecue: 50,
+    Mayonnaise: 80,
     Ketchup: 20,
     Samouraï: 85,
-    Biggy: 60,
+    Biggy: 80,
     Brésilienne: 70,
     Andalouse: 75,
     'Chili Thaï': 50,
     Américaine: 30,
     Curry: 60,
     Fromagère: 55,
-    Marocaine: 85,
-    Hannibal: 50,
+    Marocaine: 75,
+    Hannibal: 40,
     Dallas: 40,
     Poivre: 20,
   };
@@ -359,9 +360,16 @@ function fitFontSize(
   return { primaryFont, sauceFont, primaryLineHeight, sauceLineHeight, totalHeight, sauceLines };
 }
 
-function renderCanvas(ctx: CanvasRenderingContext2D, lines: string[], width: number, height: number, isPreview = false) {
-  const letterSpacing = isPreview ? 0 : canvasLetterSpacing;
-  const fontWeight = isPreview ? 500 : 600;
+function renderCanvas(
+  ctx: CanvasRenderingContext2D,
+  lines: string[],
+  width: number,
+  height: number,
+  options: { validation?: ValidationData; isPreview?: boolean } = {}
+) {
+  const letterSpacing = 0;
+  const fontWeight = 500;
+  const validation = options.validation;
 
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, width, height);
@@ -375,7 +383,17 @@ function renderCanvas(ctx: CanvasRenderingContext2D, lines: string[], width: num
   const { primaryFont, sauceFont, primaryLineHeight, sauceLineHeight, totalHeight, sauceLines } =
     fitFontSize(ctx, lines, width, height, letterSpacing, fontWeight);
 
-  const startY = Math.max(height * 0.46 - totalHeight / 2, height * 0.14);
+  const validationFont = validation ? Math.max(20, Math.round(primaryFont * 0.35)) : 0;
+  const validationTextLineHeight = validation ? Math.round(validationFont * 1.15) : 0;
+  const validationBarHeight = validation ? Math.max(8, Math.round(height * 0.006)) : 0;
+  const validationSpacing = validation ? Math.round(primaryFont * 0.28) : 0;
+  const validationBarGap = validation ? 10 : 0;
+  const validationBlockHeight = validation
+    ? validationTextLineHeight + validationBarHeight + validationSpacing + validationBarGap
+    : 0;
+
+  const overallHeight = totalHeight + validationBlockHeight;
+  const startY = Math.max(height * 0.46 - overallHeight / 2, height * 0.14);
 
   lines.slice(0, 3).forEach((line, index) => {
     ctx.font = `${fontWeight} ${primaryFont}px Anton, sans-serif`;
@@ -386,6 +404,25 @@ function renderCanvas(ctx: CanvasRenderingContext2D, lines: string[], width: num
     ctx.font = `${fontWeight} ${sauceFont}px Anton, sans-serif`;
     fillTextWithLetterSpacing(ctx, line, width / 2, startY + primaryLineHeight * 3 + index * sauceLineHeight, letterSpacing);
   });
+
+  if (validation) {
+    const validationY = startY + totalHeight + validationSpacing;
+    ctx.font = `700 ${validationFont}px Anton, sans-serif`;
+    ctx.fillText(`${validation.emoji} ${validation.score}%`, width / 2, validationY);
+
+    const barWidth = Math.min(width * 0.45, width - width * 0.2);
+    const barX = width / 2 - barWidth / 2;
+    const barY = validationY + validationTextLineHeight + validationBarGap;
+
+    ctx.fillStyle = '#111';
+    ctx.fillRect(barX, barY, barWidth, validationBarHeight);
+    ctx.strokeStyle = '#666';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(barX, barY, barWidth, validationBarHeight);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(barX, barY, barWidth * Math.min(Math.max(validation.ratio / 100, 0), 1), validationBarHeight);
+    ctx.fillStyle = '#fff';
+  }
 
   const footerFont = Math.round(primaryFont * 0.45);
   ctx.font = `bold ${footerFont}px Anton, sans-serif`;
@@ -398,7 +435,7 @@ function renderCanvas(ctx: CanvasRenderingContext2D, lines: string[], width: num
   ctx.fillText('monkebab.xyz', width / 2, footerY);
 }
 
-function createCanvasImage(lines: string[], width: number, height: number) {
+function createCanvasImage(lines: string[], width: number, height: number, validation?: ValidationData) {
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
@@ -407,14 +444,14 @@ function createCanvasImage(lines: string[], width: number, height: number) {
     throw new Error('Impossible de créer le contexte canvas');
   }
 
-  renderCanvas(ctx, lines, width, height, false);
+  renderCanvas(ctx, lines, width, height, { validation });
 
   return canvas;
 }
 
-async function downloadCanvasImage(lines: string[], format: ExportFormat) {
+async function downloadCanvasImage(lines: string[], format: ExportFormat, validation?: ValidationData) {
   const [width, height] = exportSizes[format];
-  const canvas = createCanvasImage(lines, width, height);
+  const canvas = createCanvasImage(lines, width, height, validation);
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png', 1));
   if (!blob) {
     return;
@@ -476,7 +513,7 @@ export default function Home() {
     canvas.height = height;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    renderCanvas(ctx, previewLines, width, height, true);
+    renderCanvas(ctx, previewLines, width, height);
   }, [previewLines, format]);
 
   const selectPain = (item: string) => {
@@ -610,7 +647,7 @@ export default function Home() {
               ))}
             </div>
 
-            <button type="button" className="downloadButton" onClick={() => downloadCanvasImage(previewLines, format)}>
+            <button type="button" className="downloadButton" onClick={() => downloadCanvasImage(previewLines, format, validation)}>
               TÉLÉCHARGER
             </button>
           </div>
