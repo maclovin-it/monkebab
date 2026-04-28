@@ -16,7 +16,7 @@ export const metadata = {
   title: "Monkebab",
   description: "Crée ton kebab parfait",
   icons: {
-    icon: "/logo.png",
+    icon: "/LOGO.png",
   },
 }
 
