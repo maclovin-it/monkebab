@@ -48,20 +48,17 @@ function TshirtContent() {
 
       <div className="content">
         <div className="mockupWrapper">
-          <div className="tshirtContainer">
-            <svg className="tshirtSvg" viewBox="0 0 400 440" xmlns="http://www.w3.org/2000/svg">
-              <path
-                d="M 140 50 Q 200 20 260 50 L 350 85 L 390 180 L 318 200 L 318 420 L 82 420 L 82 200 L 10 180 L 50 85 Z"
-                fill="#f0f0f0"
-                stroke="#d0d0d0"
-                strokeWidth="2"
-              />
-            </svg>
-            <div className="chestText">
-              <div className="textLine linePain">{line1}</div>
-              <div className="textLine lineViande">{line2}</div>
-              <div className="textLine lineCrudites">{line3}</div>
-              <div className="textLine lineSauces">{line4}</div>
+          {/* Cadre carré blanc autour du t-shirt */}
+          <div className="tshirtFrame">
+            <div className="tshirtContainer">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/tshirt-base.png" alt="T-shirt mockup" className="tshirtImg" />
+              <div className="chestText">
+                <div className="textLine linePain">{line1}</div>
+                <div className="textLine lineViande">{line2}</div>
+                <div className="textLine lineCrudites">{line3}</div>
+                <div className="textLine lineSauces">{line4}</div>
+              </div>
             </div>
           </div>
         </div>
@@ -150,29 +147,42 @@ function TshirtContent() {
           justify-content: center;
         }
 
+        /* Cadre blanc carré autour du mockup */
+        .tshirtFrame {
+          background: #fff;
+          padding: 20px;
+          width: 100%;
+          max-width: 380px;
+          aspect-ratio: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-sizing: border-box;
+        }
+
         .tshirtContainer {
           position: relative;
           width: 100%;
-          max-width: 320px;
         }
 
-        .tshirtSvg {
+        .tshirtImg {
           width: 100%;
           height: auto;
           display: block;
         }
 
+        /* Texte positionné sur la poitrine du t-shirt noir */
         .chestText {
           position: absolute;
-          top: 49%;
+          top: 47%;
           left: 50%;
           transform: translateX(-50%);
-          width: 54%;
+          width: 45%;
           text-align: center;
-          color: #111;
+          color: #fff;
           display: flex;
           flex-direction: column;
-          gap: 2px;
+          gap: 1px;
         }
 
         .textLine {
@@ -184,20 +194,20 @@ function TshirtContent() {
 
         .linePain,
         .lineViande {
-          font-size: 1.1rem;
+          font-size: 1.05rem;
         }
 
         .lineCrudites {
-          font-size: 0.9rem;
+          font-size: 0.85rem;
         }
 
         .lineSauces {
-          font-size: 0.75rem;
+          font-size: 0.72rem;
         }
 
         .controls {
           width: 100%;
-          max-width: 320px;
+          max-width: 380px;
           display: flex;
           flex-direction: column;
           gap: 16px;
@@ -281,21 +291,25 @@ function TshirtContent() {
             margin-bottom: 24px;
           }
 
-          .tshirtContainer {
-            max-width: 280px;
+          .tshirtFrame {
+            max-width: 320px;
+          }
+
+          .controls {
+            max-width: 320px;
           }
 
           .linePain,
           .lineViande {
-            font-size: 0.95rem;
+            font-size: 0.9rem;
           }
 
           .lineCrudites {
-            font-size: 0.78rem;
+            font-size: 0.75rem;
           }
 
           .lineSauces {
-            font-size: 0.65rem;
+            font-size: 0.62rem;
           }
         }
       `}</style>

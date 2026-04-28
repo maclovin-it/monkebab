@@ -639,9 +639,6 @@ export default function Home() {
             </div>
 
             <div className="bottomActions">
-              <button type="button" className="tshirtButton" onClick={handleTshirt}>
-                OBTENIR MON T-SHIRT
-              </button>
               <div className="shareDownloadRow">
                 <button type="button" className="shareButton" onClick={handleShare}>
                   PARTAGER
@@ -650,6 +647,9 @@ export default function Home() {
                   TÉLÉCHARGER
                 </button>
               </div>
+              <button type="button" className="tshirtButton" onClick={handleTshirt}>
+                OBTENIR MON T-SHIRT
+              </button>
             </div>
           </div>
         </section>
@@ -867,19 +867,25 @@ export default function Home() {
         .tshirtButton {
           width: 100%;
           height: 56px;
-          border: 1px solid #fff;
-          background: #fff;
-          color: #000;
+          border: 1px solid #666;
+          background: #000;
+          color: #fff;
           font-weight: 700;
           font-size: 0.92rem;
           text-transform: uppercase;
           letter-spacing: 0.08em;
           cursor: pointer;
-          transition: background 0.2s ease, color 0.2s ease;
+          transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
         }
 
         .tshirtButton:hover {
-          background: #e0e0e0;
+          border-color: #999;
+        }
+
+        .tshirtButton:active {
+          background: #fff;
+          color: #000;
+          border-color: #fff;
         }
 
         .shareDownloadRow {
