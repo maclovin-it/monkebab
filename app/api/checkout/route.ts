@@ -12,6 +12,12 @@ export async function POST(request: Request) {
     sauces?: string[];
   };
 
+  const vegetablesStr = vegetables.join(',');
+  const saucesStr = sauces.join(',');
+  const meta = { size, bread, meat, vegetables: vegetablesStr, sauces: saucesStr };
+
+  console.log('[checkout] received body:', meta);
+
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -28,12 +34,9 @@ export async function POST(request: Request) {
           },
         },
       ],
-      metadata: {
-        size,
-        bread,
-        meat,
-        vegetables: vegetables.join(','),
-        sauces: sauces.join(','),
+      metadata: meta,
+      payment_intent_data: {
+        metadata: meta,
       },
       success_url: "http://localhost:3000/success",
       cancel_url: "http://localhost:3000/cancel",
