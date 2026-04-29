@@ -2,7 +2,16 @@ import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
-export async function POST() {
+export async function POST(request: Request) {
+  const body = await request.json().catch(() => ({}));
+  const { size = '', bread = '', meat = '', vegetables = [], sauces = [] } = body as {
+    size?: string;
+    bread?: string;
+    meat?: string;
+    vegetables?: string[];
+    sauces?: string[];
+  };
+
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -19,6 +28,13 @@ export async function POST() {
           },
         },
       ],
+      metadata: {
+        size,
+        bread,
+        meat,
+        vegetables: vegetables.join(','),
+        sauces: sauces.join(','),
+      },
       success_url: "http://localhost:3000/success",
       cancel_url: "http://localhost:3000/cancel",
     });
