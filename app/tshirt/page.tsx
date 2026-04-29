@@ -21,19 +21,30 @@ function TshirtContent() {
   const sauces = saucesRaw ? saucesRaw.split(',') : [];
 
   const [selectedSize, setSelectedSize] = useState('');
-  const [showPaymentMsg, setShowPaymentMsg] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const line1 = pain ? pain.toUpperCase() : 'SANS PAIN';
   const line2 = viande ? viande.toUpperCase() : 'SANS VIANDE';
   const line3 = crudites.length ? crudites.map((c) => c.toUpperCase()).join(', ') : 'SANS CRUDITÉS';
   const line4 = sauces.length ? sauces.map((s) => s.toUpperCase()).join(', ') : 'SANS SAUCE';
 
-  const handleCommander = () => {
-    // TODO: Stripe Checkout — créer une session de paiement avec la taille et les données kebab
-    // TODO: Printful/Printify API — créer la variante produit avec la bonne taille
-    // TODO: Générer le fichier print-ready (PNG/PDF 300dpi avec marges d'impression)
-    // TODO: Créer automatiquement la commande de fulfillment après webhook Stripe payment_intent.succeeded
-    setShowPaymentMsg(true);
+  const handleCommander = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      const res = await fetch('/api/checkout', { method: 'POST' });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setError(data.error || 'Une erreur est survenue.');
+        setLoading(false);
+      }
+    } catch {
+      setError('Impossible de contacter le serveur.');
+      setLoading(false);
+    }
   };
 
   return (
@@ -80,11 +91,11 @@ function TshirtContent() {
             </div>
           </div>
 
-          <button type="button" className="commanderBtn" onClick={handleCommander}>
-            COMMANDER
+          <button type="button" className="commanderBtn" onClick={handleCommander} disabled={loading}>
+            {loading ? '...' : 'COMMANDER'}
           </button>
 
-          {showPaymentMsg && <div className="paymentMsg">Paiement bientôt disponible</div>}
+          {error && <div className="paymentMsg errorMsg">{error}</div>}
         </div>
       </div>
 
@@ -280,6 +291,16 @@ function TshirtContent() {
           letter-spacing: 0.06em;
           opacity: 0.55;
           padding: 4px 0;
+        }
+
+        .errorMsg {
+          opacity: 1;
+          color: #ff6b6b;
+        }
+
+        .commanderBtn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
         }
 
         @media (max-width: 600px) {
