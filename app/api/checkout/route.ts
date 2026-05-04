@@ -50,7 +50,7 @@ export async function POST(request: Request) {
         },
       ],
       shipping_address_collection: {
-        allowed_countries: ["FR", "CA", "US"],
+        allowed_countries: ["FR", "CA"],
       },
       metadata: meta,
       payment_intent_data: {
