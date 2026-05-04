@@ -73,6 +73,15 @@ export async function POST(request: Request) {
             files: [
               {
                 url: printFileUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png",
+                position: {
+                  area_width: 1800,
+                  area_height: 2400,
+                  width: 1250,
+                  height: 900,
+                  top: 420,
+                  left: 275,
+                  limit_to_print_area: true,
+                },
               },
             ],
           },
