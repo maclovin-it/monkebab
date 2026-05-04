@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useState } from 'react';
+import { generateDesignImage } from '@/lib/generate-design';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Anton } from 'next/font/google';
@@ -31,8 +32,36 @@ function TshirtContent() {
 
   const handleCommander = async () => {
     setError('');
+    if (!selectedSize) {
+      setError('Choisis une taille avant de commander.');
+      return;
+    }
     setLoading(true);
     try {
+      // Convert canvas blob to base64 data URI for Cloudinary upload
+      const blob = await generateDesignImage(pain, viande, crudites, sauces);
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+
+      const uploadRes = await fetch('/api/upload-design', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64 }),
+      });
+      const uploadData = await uploadRes.json();
+
+      if (!uploadData.success || !uploadData.url) {
+        setError(uploadData.error || 'Erreur lors de la génération de l\'image.');
+        setLoading(false);
+        return;
+      }
+
+      const printFileUrl = uploadData.url;
+
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -42,6 +71,7 @@ function TshirtContent() {
           meat: viande,
           vegetables: crudites,
           sauces,
+          printFileUrl,
         }),
       });
       const data = await res.json();
@@ -102,8 +132,14 @@ function TshirtContent() {
           </div>
 
           <button type="button" className="commanderBtn" onClick={handleCommander} disabled={loading}>
-            {loading ? '...' : 'COMMANDER'}
+            {loading ? '...' : 'COMMANDER — 29,99€'}
           </button>
+
+          <div className="orderInfo">
+            <span className="orderInfoMain">Livraison incluse</span>
+            <span className="orderInfoSub">Impression premium · Créé à la demande</span>
+            <span className="orderInfoSub">Chaque t-shirt est imprimé spécialement pour toi.</span>
+          </div>
 
           {error && <div className="paymentMsg errorMsg">{error}</div>}
         </div>
@@ -116,7 +152,7 @@ function TshirtContent() {
           color: #fff;
           display: flex;
           flex-direction: column;
-          padding: 24px;
+          padding: 20px 24px 24px;
           box-sizing: border-box;
         }
 
@@ -124,7 +160,7 @@ function TshirtContent() {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          margin-bottom: 36px;
+          margin-bottom: 16px;
         }
 
         .backLink {
@@ -159,7 +195,7 @@ function TshirtContent() {
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 32px;
+          gap: 20px;
         }
 
         .mockupWrapper {
@@ -171,9 +207,9 @@ function TshirtContent() {
         /* Cadre blanc carré autour du mockup */
         .tshirtFrame {
           background: #fff;
-          padding: 20px;
+          padding: 16px;
           width: 100%;
-          max-width: 380px;
+          max-width: 320px;
           aspect-ratio: 1;
           display: flex;
           align-items: center;
@@ -228,10 +264,10 @@ function TshirtContent() {
 
         .controls {
           width: 100%;
-          max-width: 380px;
+          max-width: 360px;
           display: flex;
           flex-direction: column;
-          gap: 16px;
+          gap: 12px;
         }
 
         .sizeSection {
@@ -313,21 +349,80 @@ function TshirtContent() {
           cursor: not-allowed;
         }
 
-        @media (max-width: 600px) {
-          .page {
-            padding: 16px 12px;
+        .orderInfo {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 4px;
+          padding: 2px 0;
+        }
+
+        .orderInfoMain {
+          font-size: 0.82rem;
+          letter-spacing: 0.08em;
+          opacity: 0.75;
+        }
+
+        .orderInfoSub {
+          font-size: 0.72rem;
+          letter-spacing: 0.05em;
+          opacity: 0.45;
+        }
+
+        /* ── Desktop: side-by-side layout ── */
+        @media (min-width: 601px) {
+          .content {
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            gap: 48px;
           }
 
-          .topBar {
-            margin-bottom: 24px;
+          .mockupWrapper {
+            flex: 1;
+            max-width: 380px;
           }
 
           .tshirtFrame {
-            max-width: 320px;
+            max-width: 100%;
           }
 
           .controls {
-            max-width: 320px;
+            flex: 1;
+            max-width: 360px;
+          }
+        }
+
+        /* ── Mobile ── */
+        @media (max-width: 600px) {
+          .page {
+            padding: 14px 12px 88px; /* bottom space for sticky button */
+          }
+
+          .topBar {
+            margin-bottom: 12px;
+          }
+
+          .tshirtFrame {
+            max-width: 280px;
+          }
+
+          .controls {
+            max-width: 100%;
+          }
+
+          /* Sticky CTA on mobile */
+          .commanderBtn {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 50;
+            border-left: none;
+            border-right: none;
+            border-bottom: none;
+            height: 60px;
+            font-size: 1rem;
           }
 
           .linePain,

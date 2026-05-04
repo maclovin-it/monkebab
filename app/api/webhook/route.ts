@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     }
     processedSessions.add(session.id);
 
-    const { size, bread, meat, vegetables, sauces } = session.metadata ?? {};
+    const { size, bread, meat, vegetables, sauces, printFileUrl } = session.metadata ?? {};
 
     console.log("[webhook] checkout.session.completed", {
       sessionId: session.id,
@@ -49,18 +49,21 @@ export async function POST(request: Request) {
       "X-PF-Store-Id": process.env.PRINTFUL_STORE_ID!,
     };
 
+    const customerDetails = session.customer_details;
+
     const printfulResponse = await fetch("https://api.printful.com/orders", {
       method: "POST",
       headers: printfulHeaders,
       body: JSON.stringify({
-        confirm: false,
+        confirm: false, // create as draft first, then confirm below
         recipient: {
-          name: "Test User",
-          address1: "123 Test Street",
-          city: "Toronto",
-          state_code: "ON",
-          country_code: "CA",
-          zip: "M5V 2T6",
+          name: customerDetails?.name || "Unknown",
+          email: customerDetails?.email || "",
+          address1: customerDetails?.address?.line1 || "",
+          city: customerDetails?.address?.city || "",
+          state_code: customerDetails?.address?.state || "",
+          country_code: customerDetails?.address?.country || "CA",
+          zip: customerDetails?.address?.postal_code || "",
         },
         items: [
           {
@@ -69,7 +72,7 @@ export async function POST(request: Request) {
             name: `Mon Kebab T-Shirt - ${size ?? "M"}`,
             files: [
               {
-                url: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png",
+                url: printFileUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png",
               },
             ],
           },
@@ -80,6 +83,18 @@ export async function POST(request: Request) {
     const printfulData = await printfulResponse.json();
 
     console.log("[printful] order response", printfulData);
+
+    const orderId = printfulData?.result?.id;
+    if (orderId) {
+      const confirmResponse = await fetch(`https://api.printful.com/orders/${orderId}/confirm`, {
+        method: "POST",
+        headers: printfulHeaders,
+      });
+      const confirmData = await confirmResponse.json();
+      console.log("[printful] order confirmed", confirmData);
+    } else {
+      console.error("[printful] could not confirm — no order id in response", printfulData);
+    }
   }
 
   return Response.json({ received: true });

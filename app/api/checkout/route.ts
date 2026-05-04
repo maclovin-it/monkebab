@@ -4,36 +4,49 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
-  const { size = '', bread = '', meat = '', vegetables = [], sauces = [] } = body as {
+  const { size = '', bread = '', meat = '', vegetables = [], sauces = [], printFileUrl = '' } = body as {
     size?: string;
     bread?: string;
     meat?: string;
     vegetables?: string[];
     sauces?: string[];
+    printFileUrl?: string;
   };
 
   const vegetablesStr = vegetables.join(',');
   const saucesStr = sauces.join(',');
-  const meta = { size, bread, meat, vegetables: vegetablesStr, sauces: saucesStr };
+  const meta = {
+    size,
+    bread,
+    meat,
+    vegetables: vegetablesStr,
+    sauces: saucesStr,
+    printFileUrl,
+  };
 
   console.log('[checkout] received body:', meta);
 
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      currency: "cad",
+      currency: "eur",
       line_items: [
         {
           quantity: 1,
           price_data: {
-            currency: "cad",
-            unit_amount: 2500,
+            currency: "eur",
+            unit_amount: 2999,
             product_data: {
-              name: "Mon Kebab T-Shirt",
+              name: "Ton Kebab T-Shirt personnalisé",
+              description: `Ton kebab sur t-shirt 🥙👕 | ${bread} · ${meat} · ${vegetables} · ${sauces} | Livraison incluse`,
+              images: ["https://res.cloudinary.com/dtyn7j361/image/upload/v1777654524/MOCK_UP_TA_COMMANDE_PERSONNE%CC%81LISE%CC%81E_kkafkj.png"],
             },
           },
         },
       ],
+      shipping_address_collection: {
+        allowed_countries: ["FR", "CA", "US"],
+      },
       metadata: meta,
       payment_intent_data: {
         metadata: meta,

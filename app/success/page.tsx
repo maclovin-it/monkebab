@@ -8,7 +8,13 @@ export default function SuccessPage() {
     <main className={anton.className} style={styles.page}>
       <div style={styles.card}>
         <h1 style={styles.title}>Commande reçue</h1>
-        <p style={styles.text}>Paiement validé. Ton t-shirt est en préparation.</p>
+        <p style={{ marginTop: "16px" }}>
+  Ton kebab vient de passer en cuisine...
+</p>
+
+<p style={{ opacity: 0.6, marginTop: "8px" }}>
+  Préparation du t-shirt en cours 🥙👕
+</p>
         <Link href="/" style={styles.btn}>
           Retour à l'accueil
         </Link>
