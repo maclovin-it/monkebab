@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useState, useRef, useEffect } from 'react';
 import { generateDesignImage } from '@/lib/generate-design';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -9,6 +9,13 @@ import { Anton } from 'next/font/google';
 const anton = Anton({ subsets: ['latin'], weight: '400', display: 'swap' });
 
 const SIZES = ['S', 'M', 'L', 'XL', 'XXL'];
+
+type Ratio = '1:1' | '4:5' | '9:16';
+const ASPECT: Record<Ratio, string> = {
+  '1:1': '1 / 1',
+  '4:5': '4 / 5',
+  '9:16': '9 / 16',
+};
 
 function TshirtContent() {
   const searchParams = useSearchParams();
@@ -22,8 +29,37 @@ function TshirtContent() {
   const sauces = saucesRaw ? saucesRaw.split(',') : [];
 
   const [selectedSize, setSelectedSize] = useState('');
+  const [ratio, setRatio] = useState<Ratio>('4:5');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [fontFamily, setFontFamily] = useState<string>("'Anton', sans-serif");
+
+  const previewRef = useRef<HTMLDivElement>(null);
+
+  // Load Anton as a base64 data URI and inject it into the document so that
+  // html-to-image can embed it without CORS or timing issues.
+  useEffect(() => {
+    fetch('https://fonts.gstatic.com/s/anton/v25/1Ptgg87LROyAm3Kz-C8.woff2')
+      .then((r) => r.blob())
+      .then(
+        (blob) =>
+          new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          })
+      )
+      .then((uri) => {
+        const style = document.createElement('style');
+        style.textContent = `@font-face{font-family:'AntonPrint';src:url('${uri}')format('woff2');font-weight:400;font-style:normal;}`;
+        document.head.appendChild(style);
+        setFontFamily("'AntonPrint', sans-serif");
+      })
+      .catch(() => {
+        // Next.js serves Anton from the same origin — html-to-image can still embed it.
+      });
+  }, []);
 
   const line1 = pain ? pain.toUpperCase() : 'SANS PAIN';
   const line2 = viande ? viande.toUpperCase() : 'SANS VIANDE';
@@ -36,10 +72,13 @@ function TshirtContent() {
       setError('Choisis une taille avant de commander.');
       return;
     }
+    if (!previewRef.current) {
+      setError("Erreur : aperçu introuvable.");
+      return;
+    }
     setLoading(true);
     try {
-      // Convert canvas blob to base64 data URI for Cloudinary upload
-      const blob = await generateDesignImage(pain, viande, crudites, sauces);
+      const blob = await generateDesignImage(previewRef.current);
       const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve(reader.result as string);
@@ -55,7 +94,7 @@ function TshirtContent() {
       const uploadData = await uploadRes.json();
 
       if (!uploadData.success || !uploadData.url) {
-        setError(uploadData.error || 'Erreur lors de la génération de l\'image.');
+        setError(uploadData.error || "Erreur lors de la génération de l'image.");
         setLoading(false);
         return;
       }
@@ -98,19 +137,29 @@ function TshirtContent() {
       </header>
 
       <div className="content">
-        <div className="mockupWrapper">
-          {/* Cadre carré blanc autour du t-shirt */}
-          <div className="tshirtFrame">
-            <div className="tshirtContainer">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/tshirt-base.png" alt="T-shirt mockup" className="tshirtImg" />
-              <div className="chestText">
-                <div className="textLine linePain">{line1}</div>
-                <div className="textLine lineViande">{line2}</div>
-                <div className="textLine lineCrudites">{line3}</div>
-                <div className="textLine lineSauces">{line4}</div>
-              </div>
-            </div>
+        <div className="previewSection">
+          <div className="ratioSelector">
+            {(['1:1', '4:5', '9:16'] as Ratio[]).map((r) => (
+              <button
+                key={r}
+                type="button"
+                className={`ratioBtn${ratio === r ? ' active' : ''}`}
+                onClick={() => setRatio(r)}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+
+          <div
+            ref={previewRef}
+            className="designCard"
+            style={{ aspectRatio: ASPECT[ratio], fontFamily }}
+          >
+            <div className="textLine linePain">{line1}</div>
+            <div className="textLine lineViande">{line2}</div>
+            <div className="textLine lineCrudites">{line3}</div>
+            <div className="textLine lineSauces">{line4}</div>
           </div>
         </div>
 
@@ -198,70 +247,84 @@ function TshirtContent() {
           gap: 20px;
         }
 
-        .mockupWrapper {
-          width: 100%;
-          display: flex;
-          justify-content: center;
-        }
-
-        /* Cadre blanc carré autour du mockup */
-        .tshirtFrame {
-          background: #fff;
-          padding: 16px;
-          width: 100%;
-          max-width: 320px;
-          aspect-ratio: 1;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          box-sizing: border-box;
-        }
-
-        .tshirtContainer {
-          position: relative;
-          width: 100%;
-        }
-
-        .tshirtImg {
-          width: 100%;
-          height: auto;
-          display: block;
-        }
-
-        /* Texte positionné sur la poitrine du t-shirt noir */
-        .chestText {
-          position: absolute;
-          top: 30%;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 45%;
-          text-align: center;
-          color: #fff;
+        /* ── Preview section ── */
+        .previewSection {
           display: flex;
           flex-direction: column;
-          gap: 1px;
+          align-items: center;
+          gap: 10px;
+          width: 100%;
+        }
+
+        .ratioSelector {
+          display: flex;
+          gap: 6px;
+        }
+
+        .ratioBtn {
+          padding: 0 12px;
+          height: 28px;
+          border: 1px solid #444;
+          background: transparent;
+          color: #888;
+          font-size: 0.72rem;
+          letter-spacing: 0.08em;
+          cursor: pointer;
+          font-family: inherit;
+          transition: border-color 0.15s, color 0.15s;
+        }
+
+        .ratioBtn:hover {
+          border-color: #888;
+          color: #ccc;
+        }
+
+        .ratioBtn.active {
+          border-color: #fff;
+          color: #fff;
+        }
+
+        /* The design card IS the export source — no separate off-screen element */
+        .designCard {
+          background: #000;
+          border: 1px solid #222;
+          width: 100%;
+          max-width: 320px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 4px;
+          padding: 8%;
+          box-sizing: border-box;
+          color: #fff;
         }
 
         .textLine {
-          line-height: 1.15;
-          word-break: break-word;
-          hyphens: none;
+          line-height: 1.1;
+          letter-spacing: 0.02em;
           text-align: center;
+          width: 100%;
+          word-break: break-word;
         }
 
-        .linePain,
+        .linePain {
+          font-size: 1.5rem;
+        }
+
         .lineViande {
-          font-size: 1.2rem;
+          font-size: 2rem;
         }
 
         .lineCrudites {
-          font-size: 0.98rem;
+          font-size: 1.2rem;
         }
 
         .lineSauces {
-          font-size: 0.82rem;
+          font-size: 1rem;
         }
 
+        /* ── Controls ── */
         .controls {
           width: 100%;
           max-width: 360px;
@@ -331,6 +394,11 @@ function TshirtContent() {
           background: #e0e0e0;
         }
 
+        .commanderBtn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
         .paymentMsg {
           text-align: center;
           font-size: 0.82rem;
@@ -342,11 +410,6 @@ function TshirtContent() {
         .errorMsg {
           opacity: 1;
           color: #ff6b6b;
-        }
-
-        .commanderBtn:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
         }
 
         .orderInfo {
@@ -369,21 +432,21 @@ function TshirtContent() {
           opacity: 0.45;
         }
 
-        /* ── Desktop: side-by-side layout ── */
+        /* ── Desktop: side-by-side ── */
         @media (min-width: 601px) {
           .content {
             flex-direction: row;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
             gap: 48px;
           }
 
-          .mockupWrapper {
+          .previewSection {
             flex: 1;
             max-width: 380px;
           }
 
-          .tshirtFrame {
+          .designCard {
             max-width: 100%;
           }
 
@@ -396,14 +459,14 @@ function TshirtContent() {
         /* ── Mobile ── */
         @media (max-width: 600px) {
           .page {
-            padding: 14px 12px 88px; /* bottom space for sticky button */
+            padding: 14px 12px 88px;
           }
 
           .topBar {
             margin-bottom: 12px;
           }
 
-          .tshirtFrame {
+          .designCard {
             max-width: 280px;
           }
 
@@ -411,7 +474,6 @@ function TshirtContent() {
             max-width: 100%;
           }
 
-          /* Sticky CTA on mobile */
           .commanderBtn {
             position: fixed;
             bottom: 0;
@@ -423,19 +485,6 @@ function TshirtContent() {
             border-bottom: none;
             height: 60px;
             font-size: 1rem;
-          }
-
-          .linePain,
-          .lineViande {
-            font-size: 0.9rem;
-          }
-
-          .lineCrudites {
-            font-size: 0.75rem;
-          }
-
-          .lineSauces {
-            font-size: 0.62rem;
           }
         }
       `}</style>
