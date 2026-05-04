@@ -26,6 +26,11 @@ export async function POST(request: Request) {
 
   console.log('[checkout] received body:', meta);
 
+  const baseUrl =
+  process.env.NODE_ENV === "production"
+    ? "https://monkebab.xyz"
+    : "http://localhost:3000";
+
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -51,8 +56,8 @@ export async function POST(request: Request) {
       payment_intent_data: {
         metadata: meta,
       },
-      success_url: "http://localhost:3000/success",
-      cancel_url: "http://localhost:3000/cancel",
+      success_url: `${baseUrl}/success`,
+      cancel_url: `${baseUrl}/cancel`,
     });
 
     return Response.json({ url: session.url });
