@@ -633,7 +633,7 @@ export default function Home() {
                 </button>
               </div>
               <button type="button" className="tshirtButton" onClick={handleTshirt}>
-                OBTENIR MON T-SHIRT
+                OBTENIR MON T-SHIRT 👕
               </button>
             </div>
           </div>
