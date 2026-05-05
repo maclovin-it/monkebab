@@ -18,6 +18,8 @@ export const metadata: Metadata = {
   description: "Crée ta commande de kebab en ligne !",
   icons: {
     icon: "/icon.png",
+    shortcut: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
   },
 };
 

@@ -490,11 +490,11 @@ export default function Home() {
     }, 'image/png', 1);
   };
 
-  const previewFrameSizes = {
-    '1:1': { width: '320px', height: '320px' },
-    '4:5': { width: '320px', height: '400px' },
-    '9:16': { width: '320px', height: '568px' },
-  } as const;
+  const previewAspectRatio: Record<ExportFormat, string> = {
+    '1:1': '1 / 1',
+    '4:5': '4 / 5',
+    '9:16': '9 / 16',
+  };
 
   useEffect(() => {
     const canvas = previewCanvasRef.current;
@@ -625,7 +625,7 @@ export default function Home() {
             </div>
 
             <div className="previewCard">
-              <div className="previewFrame" style={previewFrameSizes[format]}>
+              <div className="previewFrame" style={{ aspectRatio: previewAspectRatio[format] }}>
                 <canvas ref={previewCanvasRef} className="previewCanvas" />
               </div>
             </div>
@@ -656,12 +656,19 @@ export default function Home() {
       </div>
 
       <style jsx>{`
+        /*
+         * Desktop layout uses a two-row page grid (title / layout) so the
+         * layout row has a *definite* height. This makes height:100% on
+         * child panels resolve identically in Chrome and Safari — both now
+         * derive from the explicit grid row size rather than from a flex:1
+         * chain, which the two engines handled differently.
+         */
         .page {
-          min-height: 100vh;
           height: 100vh;
           padding: 24px;
-          display: flex;
-          flex-direction: column;
+          box-sizing: border-box;
+          display: grid;
+          grid-template-rows: auto 1fr;
           background: #000;
           color: #fff;
           overflow: hidden;
@@ -671,11 +678,12 @@ export default function Home() {
           width: 100%;
           max-width: 1400px;
           margin: 0 auto;
+          /* fr units absorb the gap; percentages would overflow the container */
           display: grid;
-          grid-template-columns: 60% 40%;
-          gap: 24px;
-          flex: 1;
-          align-content: center;
+          grid-template-columns: minmax(0, 12fr) minmax(0, 7fr);
+          grid-template-rows: 1fr;
+          gap: 48px;
+          height: 100%;
           min-height: 0;
         }
 
@@ -705,18 +713,15 @@ export default function Home() {
           min-width: 0;
           display: flex;
           align-items: stretch;
-          justify-content: center;
           overflow: hidden;
         }
 
         .rightStack {
           width: 100%;
-          max-width: 440px;
           height: 100%;
           min-height: 0;
           display: flex;
           flex-direction: column;
-          justify-content: space-between;
           gap: 12px;
         }
 
@@ -804,11 +809,13 @@ export default function Home() {
           overflow: hidden;
         }
 
+        /* aspect-ratio is set via inline style; size is constrained by
+           max-width/max-height so it always fits the previewCard cell */
         .previewFrame {
-          width: auto;
-          height: auto;
           max-width: 100%;
           max-height: 100%;
+          width: auto;
+          height: auto;
           background: #000;
           border: 1px solid #666;
           padding: 14px;
@@ -820,11 +827,11 @@ export default function Home() {
         }
 
         .previewCanvas {
+          display: block;
           max-width: 100%;
           max-height: 100%;
           width: auto;
           height: auto;
-          display: block;
         }
 
         .formatButtons {
@@ -1038,7 +1045,9 @@ export default function Home() {
         @media (max-width: 900px) {
           .page {
             height: auto;
-            min-height: auto;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
             overflow-x: hidden;
             overflow-y: auto;
             padding: 16px 12px;
@@ -1055,6 +1064,7 @@ export default function Home() {
           .leftPanel,
           .rightPanel {
             width: 100%;
+            height: auto;
             min-height: auto;
             overflow: visible;
           }
@@ -1065,17 +1075,13 @@ export default function Home() {
 
           .rightPanel {
             order: 2;
-            justify-content: flex-start;
-            align-items: stretch;
             height: auto;
           }
 
           .rightStack {
             width: 100%;
-            max-width: 100%;
-            gap: 12px;
-            justify-content: flex-start;
             height: auto;
+            gap: 12px;
           }
 
           .titleBlock h1 {
@@ -1144,12 +1150,14 @@ export default function Home() {
           .previewCard {
             width: 100%;
             height: auto;
+            flex: none;
           }
 
           .previewFrame {
             width: 100%;
-            max-width: 100%;
-            min-height: 300px;
+            max-width: 480px;
+            max-height: none;
+            height: auto;
             margin: 0 auto;
           }
 
