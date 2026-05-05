@@ -399,28 +399,7 @@ function renderCanvas(ctx: CanvasRenderingContext2D, lines: string[], width: num
   ctx.fillText('monkebab.xyz', width / 2, footerY);
 }
 
-function createCanvasImage(lines: string[], width: number, height: number) {
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) {
-    throw new Error('Impossible de créer le contexte canvas');
-  }
-
-  renderCanvas(ctx, lines, width, height, false);
-
-  return canvas;
-}
-
-async function downloadCanvasImage(lines: string[], format: ExportFormat) {
-  const [width, height] = exportSizes[format];
-  const canvas = createCanvasImage(lines, width, height);
-  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png', 1));
-  if (!blob) {
-    return;
-  }
-
+function downloadBlob(blob: Blob, format: ExportFormat) {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
@@ -475,17 +454,17 @@ export default function Home() {
   };
 
   const handleShare = () => {
-    const [width, height] = exportSizes[format];
-    const canvas = createCanvasImage(previewLines, width, height);
+    const canvas = previewCanvasRef.current;
+    if (!canvas) return;
     canvas.toBlob((blob) => {
       if (!blob) return;
       if (navigator.share) {
         const file = new File([blob], 'monkebab.png', { type: 'image/png' });
         navigator.share({ files: [file], title: 'Mon Kebab' }).catch(() => {
-          downloadCanvasImage(previewLines, format);
+          downloadBlob(blob, format);
         });
       } else {
-        downloadCanvasImage(previewLines, format);
+        downloadBlob(blob, format);
       }
     }, 'image/png', 1);
   };
@@ -499,12 +478,14 @@ export default function Home() {
   useEffect(() => {
     const canvas = previewCanvasRef.current;
     if (!canvas) return;
-    const [width, height] = exportSizes[format];
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    renderCanvas(ctx, previewLines, width, height, true);
+    document.fonts.ready.then(() => {
+      const [width, height] = exportSizes[format];
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      renderCanvas(ctx, previewLines, width, height, true);
+    });
   }, [previewLines, format]);
 
   const selectPain = (item: string) => {
@@ -643,7 +624,11 @@ export default function Home() {
                 <button type="button" className="shareButton" onClick={handleShare}>
                   PARTAGER
                 </button>
-                <button type="button" className="downloadButton" onClick={() => downloadCanvasImage(previewLines, format)}>
+                <button type="button" className="downloadButton" onClick={() => {
+                  const canvas = previewCanvasRef.current;
+                  if (!canvas) return;
+                  canvas.toBlob((blob) => { if (blob) downloadBlob(blob, format); }, 'image/png', 1);
+                }}>
                   TÉLÉCHARGER
                 </button>
               </div>
@@ -668,7 +653,10 @@ export default function Home() {
           padding: 24px;
           box-sizing: border-box;
           display: grid;
-          grid-template-rows: auto 1fr;
+          /* minmax(0,1fr) lets the row shrink below content min-height;
+             without the 0 minimum, a tall left panel expands the row and
+             pushes Chrome/Safari to render very differently */
+          grid-template-rows: auto minmax(0, 1fr);
           background: #000;
           color: #fff;
           overflow: hidden;
@@ -678,10 +666,10 @@ export default function Home() {
           width: 100%;
           max-width: 1400px;
           margin: 0 auto;
-          /* fr units absorb the gap; percentages would overflow the container */
           display: grid;
-          grid-template-columns: minmax(0, 12fr) minmax(0, 7fr);
-          grid-template-rows: 1fr;
+          /* ~55% left / ~45% right — bigger right column as preferred */
+          grid-template-columns: minmax(0, 11fr) minmax(0, 9fr);
+          grid-template-rows: minmax(0, 1fr);
           gap: 48px;
           height: 100%;
           min-height: 0;
