@@ -35,6 +35,8 @@ export async function POST(request: Request) {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       currency: "eur",
+      // fr locale: EUR shown first, France pre-selected as default country
+      locale: "fr",
       line_items: [
         {
           quantity: 1,
@@ -50,7 +52,13 @@ export async function POST(request: Request) {
         },
       ],
       shipping_address_collection: {
+        // FR first — locale:'fr' will auto-select France on load
         allowed_countries: ["FR", "CA"],
+      },
+      custom_text: {
+        shipping_address: {
+          message: "Fabriqué à la demande · Expédié sous 3–5 jours ouvrés 🚚",
+        },
       },
       metadata: meta,
       payment_intent_data: {
