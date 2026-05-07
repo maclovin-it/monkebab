@@ -55,14 +55,14 @@ export async function POST(request: Request) {
       method: "POST",
       headers: printfulHeaders,
       body: JSON.stringify({
-        confirm: false, // create as draft first, then confirm below
+        confirm: false,
         recipient: {
           name: customerDetails?.name || "Unknown",
           email: customerDetails?.email || "",
           address1: customerDetails?.address?.line1 || "",
           city: customerDetails?.address?.city || "",
           state_code: customerDetails?.address?.state || "",
-          country_code: customerDetails?.address?.country || "CA",
+          country_code: customerDetails?.address?.country || "FR",
           zip: customerDetails?.address?.postal_code || "",
         },
         items: [
@@ -74,12 +74,15 @@ export async function POST(request: Request) {
               {
                 url: printFileUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png",
                 position: {
+                  // Print file ratio is 4:5 = 0.80 (width/height).
+                  // Position ratio must match: 960/1200 = 0.80.
+                  // Centered horizontally: left = (1800 - 960) / 2 = 420.
                   area_width: 1800,
                   area_height: 2400,
-                  width: 1250,
-                  height: 900,
-                  top: 420,
-                  left: 275,
+                  width: 960,
+                  height: 1200,
+                  top: 360,
+                  left: 420,
                   limit_to_print_area: true,
                 },
               },
@@ -93,17 +96,21 @@ export async function POST(request: Request) {
 
     console.log("[printful] order response", printfulData);
 
-    const orderId = printfulData?.result?.id;
-    if (orderId) {
-      const confirmResponse = await fetch(`https://api.printful.com/orders/${orderId}/confirm`, {
-        method: "POST",
-        headers: printfulHeaders,
+    if (printfulResponse.status !== 200 || !printfulData?.result?.id) {
+      console.error("[printful] order creation failed", {
+        status: printfulResponse.status,
+        body: printfulData,
       });
-      const confirmData = await confirmResponse.json();
-      console.log("[printful] order confirmed", confirmData);
-    } else {
-      console.error("[printful] could not confirm — no order id in response", printfulData);
+      return Response.json({ error: "Printful order creation failed" }, { status: 500 });
     }
+
+    const orderId = printfulData.result.id;
+    const confirmResponse = await fetch(`https://api.printful.com/orders/${orderId}/confirm`, {
+      method: "POST",
+      headers: printfulHeaders,
+    });
+    const confirmData = await confirmResponse.json();
+    console.log("[printful] order confirmed", confirmData);
   }
 
   return Response.json({ received: true });
