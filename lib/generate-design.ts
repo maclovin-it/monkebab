@@ -1,16 +1,17 @@
 'use client';
-
 import { toPng } from 'html-to-image';
 
-export async function generateDesignImage(element: HTMLElement): Promise<Blob> {
+export async function generateDesignImage(element: HTMLElement): Promise<string> {
   await document.fonts.ready;
 
-  const dataUrl = await toPng(element, {
-    pixelRatio: 4,
-    cacheBust: false,
-    filter: (node: Node) => node === element || element.contains(node),
-  });
+  const rect = element.getBoundingClientRect();
+  const w = rect.width || 500;
+  const h = rect.height || 625;
 
-  const res = await fetch(dataUrl);
-  return await res.blob();
+  return toPng(element, {
+    pixelRatio: 4,
+    width: w,
+    height: h,
+    cacheBust: false,
+  });
 }

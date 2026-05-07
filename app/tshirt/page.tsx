@@ -70,13 +70,21 @@ function TshirtContent() {
     }
     setLoading(true);
     try {
-      const blob = await generateDesignImage(captureRef.current);
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
+      const dataUrl = await generateDesignImage(captureRef.current);
+
+      // DEBUG: verify the capture has content before uploading
+      console.log('[capture] dataUrl length:', dataUrl.length);
+      window.open(dataUrl, '_blank');
+
+      // A real image with text is several hundred KB at 4× pixel ratio.
+      // A blank/failed capture is tiny (< 5 KB in base64).
+      if (dataUrl.length < 5000) {
+        setError('Erreur génération visuel, réessaie.');
+        setLoading(false);
+        return;
+      }
+
+      const base64 = dataUrl; // already a data URI — pass directly
 
       const uploadRes = await fetch('/api/upload-design', {
         method: 'POST',
@@ -200,15 +208,16 @@ function TshirtContent() {
           position: relative;
         }
 
-        /* Off-screen — in the DOM so html-to-image can capture it,
-           but invisible to the user */
+        /* Off-screen — position:fixed so getBoundingClientRect() returns real
+           dimensions; explicit height (no aspect-ratio) so html-to-image
+           doesn't get a 0-height element; transparent bg for DTG printing */
         .captureCard {
-          position: absolute;
+          position: fixed;
           left: -9999px;
           top: 0;
           width: 500px;
-          aspect-ratio: 4 / 5;
-          background: #000;
+          height: 625px;
+          background: transparent;
           color: #fff;
           display: flex;
           flex-direction: column;
@@ -217,6 +226,7 @@ function TshirtContent() {
           gap: 6px;
           padding: 8%;
           box-sizing: border-box;
+          pointer-events: none;
         }
 
         .captureLine {
