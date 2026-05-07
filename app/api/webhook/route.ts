@@ -43,6 +43,20 @@ export async function POST(request: Request) {
       sauces,
     });
 
+    const VARIANT_IDS: Record<string, number> = {
+      S: 11546,
+      M: 11547,
+      L: 11548,
+      XL: 11549,
+      XXL: 11550,
+    };
+
+    const variantId = size ? VARIANT_IDS[size] : undefined;
+    if (!variantId) {
+      console.error("[printful] unknown or missing size, skipping order:", size);
+      return Response.json({ received: true });
+    }
+
     const printfulHeaders = {
       Authorization: `Bearer ${process.env.PRINTFUL_API_KEY}`,
       "Content-Type": "application/json",
@@ -67,11 +81,12 @@ export async function POST(request: Request) {
         },
         items: [
           {
-            variant_id: 11547,
+            variant_id: variantId,
             quantity: 1,
-            name: `Mon Kebab T-Shirt - ${size ?? "M"}`,
+            name: `Mon Kebab T-Shirt - ${size}`,
             files: [
               {
+                type: "front",
                 url: printFileUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png",
                 position: {
                   // Print file ratio is 4:5 = 0.80 (width/height).
