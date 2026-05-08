@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useRef, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { generateDesignImage } from '@/lib/generate-design';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -25,12 +25,6 @@ function TshirtContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [fontFamily, setFontFamily] = useState<string>("'Anton', sans-serif");
-
-  // Off-screen capture target for Printful export.
-  // The t-shirt mockup is the visible preview; this hidden card is what
-  // html-to-image captures — it uses AntonPrint (base64 URI) so the font
-  // is guaranteed embedded with no CORS or timing issues.
-  const captureRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch('https://fonts.gstatic.com/s/anton/v25/1Ptgg87LROyAm3Kz-C8.woff2')
@@ -64,13 +58,14 @@ function TshirtContent() {
       setError('Choisis une taille avant de commander.');
       return;
     }
-    if (!captureRef.current) {
-      setError("Erreur : aperçu introuvable.");
-      return;
-    }
     setLoading(true);
     try {
-      const dataUrl = await generateDesignImage(captureRef.current);
+      const dataUrl = await generateDesignImage([
+        { text: line1, fontSize: 42 },
+        { text: line2, fontSize: 56 },
+        { text: line3, fontSize: 34 },
+        { text: line4, fontSize: 28 },
+      ]);
 
       console.log('[capture] dataUrl length:', dataUrl.length);
 
@@ -126,19 +121,6 @@ function TshirtContent() {
 
   return (
     <main className={`page ${anton.className}`}>
-      {/* Hidden capture card — positioned off-screen, captured by html-to-image */}
-      <div
-        ref={captureRef}
-        className="captureCard"
-        style={{ fontFamily }}
-        aria-hidden="true"
-      >
-        <div className="captureLine capturePain">{line1}</div>
-        <div className="captureLine captureViande">{line2}</div>
-        <div className="captureLine captureCrudites">{line3}</div>
-        <div className="captureLine captureSauces">{line4}</div>
-      </div>
-
       <header className="topBar">
         <Link href="/" className="backLink">
           ← RETOUR
@@ -205,40 +187,6 @@ function TshirtContent() {
           box-sizing: border-box;
           position: relative;
         }
-
-        /* Off-screen — position:fixed so getBoundingClientRect() returns real
-           dimensions; explicit height (no aspect-ratio) so html-to-image
-           doesn't get a 0-height element; transparent bg for DTG printing */
-        .captureCard {
-          position: fixed;
-          left: -9999px;
-          top: 0;
-          width: 500px;
-          height: 625px;
-          background: transparent;
-          color: #fff;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-          padding: 8%;
-          box-sizing: border-box;
-          pointer-events: none;
-        }
-
-        .captureLine {
-          line-height: 1.1;
-          letter-spacing: 0.02em;
-          text-align: center;
-          width: 100%;
-          word-break: break-word;
-        }
-
-        .capturePain    { font-size: 42px; }
-        .captureViande  { font-size: 56px; }
-        .captureCrudites{ font-size: 34px; }
-        .captureSauces  { font-size: 28px; }
 
         .topBar {
           display: flex;
