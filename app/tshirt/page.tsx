@@ -72,9 +72,7 @@ function TshirtContent() {
     try {
       const dataUrl = await generateDesignImage(captureRef.current);
 
-      // DEBUG: verify the capture has content before uploading
       console.log('[capture] dataUrl length:', dataUrl.length);
-      window.open(dataUrl, '_blank');
 
       // A real image with text is several hundred KB at 4× pixel ratio.
       // A blank/failed capture is tiny (< 5 KB in base64).
