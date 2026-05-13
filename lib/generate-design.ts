@@ -17,9 +17,9 @@ export async function generateDesignImage(lines: DesignLine[]): Promise<string> 
     }
   }
 
-  const SCALE = 4;
-  const W = 500 * SCALE; // 2000 px
-  const H = 625 * SCALE; // 2500 px
+  const SCALE = 6;
+  const W = 500 * SCALE; // 3000 px
+  const H = 625 * SCALE; // 3750 px
 
   const canvas = document.createElement('canvas');
   canvas.width = W;
@@ -35,7 +35,7 @@ export async function generateDesignImage(lines: DesignLine[]): Promise<string> 
 
   const LINE_HEIGHT = 1.15;
   const GAP = 6 * SCALE;
-  const MAX_W = W * 0.84; // 8% padding each side
+  const MAX_W = W * 0.88;
 
   const lineHeights = lines.map(({ fontSize }) => fontSize * SCALE * LINE_HEIGHT);
   const totalH = lineHeights.reduce((a, b) => a + b, 0) + GAP * (lines.length - 1);

@@ -90,14 +90,14 @@ export async function POST(request: Request) {
                 url: printFileUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png",
                 position: {
                   // Print file ratio is 4:5 = 0.80 (width/height).
-                  // Position ratio must match: 960/1200 = 0.80.
-                  // Centered horizontally: left = (1800 - 960) / 2 = 420.
+                  // Position ratio must match: 1700/2125 = 0.80.
+                  // Centered horizontally: left = (1800 - 1700) / 2 = 50.
                   area_width: 1800,
                   area_height: 2400,
-                  width: 960,
-                  height: 1200,
-                  top: 360,
-                  left: 420,
+                  width: 1700,
+                  height: 2125,
+                  top: 80,
+                  left: 50,
                   limit_to_print_area: true,
                 },
               },

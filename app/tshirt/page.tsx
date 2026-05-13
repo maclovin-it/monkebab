@@ -61,10 +61,10 @@ function TshirtContent() {
     setLoading(true);
     try {
       const dataUrl = await generateDesignImage([
-        { text: line1, fontSize: 42 },
-        { text: line2, fontSize: 56 },
-        { text: line3, fontSize: 34 },
-        { text: line4, fontSize: 28 },
+        { text: line1, fontSize: 84 },
+        { text: line2, fontSize: 112 },
+        { text: line3, fontSize: 68 },
+        { text: line4, fontSize: 56 },
       ]);
 
       console.log('[capture] dataUrl length:', dataUrl.length);
