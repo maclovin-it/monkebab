@@ -52,8 +52,7 @@ export async function POST(request: Request) {
         },
       ],
       shipping_address_collection: {
-        // FR first — locale:'fr' will auto-select France on load
-        allowed_countries: ["FR", "CA"],
+        allowed_countries: ["FR"],
       },
       custom_text: {
         shipping_address: {
