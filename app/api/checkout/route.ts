@@ -1,6 +1,4 @@
-import Stripe from "stripe";
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+import { getStripe } from "@/lib/stripe";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
@@ -32,7 +30,7 @@ export async function POST(request: Request) {
     : "http://localhost:3000";
 
   try {
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       mode: "payment",
       currency: "eur",
       // fr locale: EUR shown first, France pre-selected as default country
