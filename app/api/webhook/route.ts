@@ -1,12 +1,11 @@
-import Stripe from "stripe";
+import type Stripe from "stripe";
+import { getStripe } from "@/lib/stripe";
 import { getResend } from "@/lib/resend";
 import {
   ORDER_CONFIRMATION_SUBJECT,
   renderOrderConfirmationHtml,
   renderOrderConfirmationText,
 } from "@/lib/emails/order-confirmation";
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 // In-memory only: this does NOT survive cold starts and is not shared between
 // concurrent serverless instances. It de-duplicates Stripe retries hitting the
@@ -42,7 +41,7 @@ export async function POST(request: Request) {
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(rawBody, sig, secret);
+    event = getStripe().webhooks.constructEvent(rawBody, sig, secret);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Signature verification failed";
     console.error("[webhook] signature error:", message);
