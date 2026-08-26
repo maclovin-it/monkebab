@@ -14,8 +14,8 @@ const processedSessions = new Set<string>();
 
 const ORDER_CONFIRMATION_FROM = "Mon Kebab <commande@monkebab.xyz>";
 
-// Public product mockup already used on the Stripe checkout page. The print
-// file in metadata is a transparent PNG, unusable on its own in an email.
+// Generic placeholder mockup, used only as a fallback for the rare session
+// that has no printFileUrl in its metadata.
 const PRODUCT_MOCKUP_URL =
   "https://res.cloudinary.com/dtyn7j361/image/upload/v1777654524/MOCK_UP_TA_COMMANDE_PERSONNE%CC%81LISE%CC%81E_kkafkj.png";
 
@@ -145,12 +145,25 @@ export async function POST(request: Request) {
     }
 
     const orderId = printfulData.result.id;
-    const confirmResponse = await fetch(`https://api.printful.com/orders/${orderId}/confirm`, {
-      method: "POST",
-      headers: printfulHeaders,
-    });
-    const confirmData = await confirmResponse.json();
-    console.log("[printful] order confirmed", confirmData);
+
+    // Test-only escape hatch: leaves the order in Printful's "draft" status
+    // (created, visible in the dashboard, never queued for production/billing)
+    // instead of confirming it. Gated on NODE_ENV so it can never be armed by
+    // an env var alone in a deployed (production or preview) environment —
+    // only `next dev` sets NODE_ENV to anything other than "production".
+    const skipConfirm =
+      process.env.PRINTFUL_SKIP_CONFIRM === "true" && process.env.NODE_ENV !== "production";
+
+    if (skipConfirm) {
+      console.log("[printful] PRINTFUL_SKIP_CONFIRM active — leaving order as draft, not confirming:", orderId);
+    } else {
+      const confirmResponse = await fetch(`https://api.printful.com/orders/${orderId}/confirm`, {
+        method: "POST",
+        headers: printfulHeaders,
+      });
+      const confirmData = await confirmResponse.json();
+      console.log("[printful] order confirmed", confirmData);
+    }
 
     // Order confirmation email. Deliberately best-effort: the Printful order
     // already exists at this point, so an email failure must never bubble up
@@ -169,7 +182,7 @@ export async function POST(request: Request) {
           size,
           amountPaid: formatAmount(session),
           reference: String(orderId),
-          mockupUrl: PRODUCT_MOCKUP_URL,
+          mockupUrl: printFileUrl || PRODUCT_MOCKUP_URL,
         };
 
         const { error } = await getResend().emails.send({
