@@ -132,7 +132,7 @@ export function renderOrderConfirmationHtml(data: OrderConfirmationData): string
     reference,
     mockupUrl,
     ctaUrl = 'https://monkebab.xyz',
-    ctaLabel = 'Créer un autre kebab',
+    ctaLabel = 'Retourner sur Mon Kebab',
   } = data;
 
   const recap = [
@@ -224,14 +224,8 @@ ${mockupBlock(mockupUrl)}
 
                 <!-- CTA -->
                 <tr>
-                  <td class="cta" align="center" style="padding:0 0 34px 0;">
-                    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-                      <tr>
-                        <td align="center" style="background-color:${WHITE};">
-                          <a href="${escapeHtml(ctaUrl)}" style="display:inline-block;padding:15px 34px;font-family:${CONDENSED};font-size:15px;letter-spacing:2px;text-transform:uppercase;color:${BLACK};text-decoration:none;">${escapeHtml(ctaLabel)}</a>
-                        </td>
-                      </tr>
-                    </table>
+                  <td align="center" style="padding:0 0 34px 0;">
+                    <a href="${escapeHtml(ctaUrl)}" style="font-family:${BODY_FONT};font-size:13px;letter-spacing:0.5px;color:${MUTED};text-decoration:underline;">${escapeHtml(ctaLabel)}</a>
                   </td>
                 </tr>
 
