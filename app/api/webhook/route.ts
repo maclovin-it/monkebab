@@ -1,6 +1,7 @@
 import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { getResend } from "@/lib/resend";
+import { createOrder, confirmOrder } from "@/lib/printful";
 import {
   ORDER_CONFIRMATION_SUBJECT,
   renderOrderConfirmationHtml,
@@ -82,63 +83,51 @@ export async function POST(request: Request) {
       return Response.json({ received: true });
     }
 
-    const printfulHeaders = {
-      Authorization: `Bearer ${process.env.PRINTFUL_API_KEY}`,
-      "Content-Type": "application/json",
-      "X-PF-Store-Id": process.env.PRINTFUL_STORE_ID!,
-    };
-
     const customerDetails = session.customer_details;
 
-    const printfulResponse = await fetch("https://api.printful.com/orders", {
-      method: "POST",
-      headers: printfulHeaders,
-      body: JSON.stringify({
-        confirm: false,
-        recipient: {
-          name: customerDetails?.name || "Unknown",
-          email: customerDetails?.email || "",
-          address1: customerDetails?.address?.line1 || "",
-          city: customerDetails?.address?.city || "",
-          state_code: customerDetails?.address?.state || "",
-          country_code: customerDetails?.address?.country || "FR",
-          zip: customerDetails?.address?.postal_code || "",
-        },
-        items: [
-          {
-            variant_id: variantId,
-            quantity: 1,
-            name: `Mon Kebab T-Shirt - ${size}`,
-            files: [
-              {
-                type: "front",
-                url: printFileUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png",
-                position: {
-                  // Print file ratio is 4:5 = 0.80 (width/height).
-                  // Position ratio must match: 1700/2125 = 0.80.
-                  // Centered horizontally: left = (1800 - 1700) / 2 = 50.
-                  area_width: 1800,
-                  area_height: 2400,
-                  width: 1700,
-                  height: 2125,
-                  top: 80,
-                  left: 50,
-                  limit_to_print_area: true,
-                },
+    const { status: createStatus, body: printfulData } = await createOrder({
+      confirm: false,
+      recipient: {
+        name: customerDetails?.name || "Unknown",
+        email: customerDetails?.email || "",
+        address1: customerDetails?.address?.line1 || "",
+        city: customerDetails?.address?.city || "",
+        state_code: customerDetails?.address?.state || "",
+        country_code: customerDetails?.address?.country || "FR",
+        zip: customerDetails?.address?.postal_code || "",
+      },
+      items: [
+        {
+          variant_id: variantId,
+          quantity: 1,
+          name: `Mon Kebab T-Shirt - ${size}`,
+          files: [
+            {
+              type: "front",
+              url: printFileUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png",
+              position: {
+                // Print file ratio is 4:5 = 0.80 (width/height).
+                // Position ratio must match: 1700/2125 = 0.80.
+                // Centered horizontally: left = (1800 - 1700) / 2 = 50.
+                area_width: 1800,
+                area_height: 2400,
+                width: 1700,
+                height: 2125,
+                top: 80,
+                left: 50,
+                limit_to_print_area: true,
               },
-            ],
-          },
-        ],
-      }),
+            },
+          ],
+        },
+      ],
     });
-
-    const printfulData = await printfulResponse.json();
 
     console.log("[printful] order response", printfulData);
 
-    if (printfulResponse.status !== 200 || !printfulData?.result?.id) {
+    if (createStatus !== 200 || !printfulData?.result?.id) {
       console.error("[printful] order creation failed", {
-        status: printfulResponse.status,
+        status: createStatus,
         body: printfulData,
       });
       return Response.json({ error: "Printful order creation failed" }, { status: 500 });
@@ -157,11 +146,7 @@ export async function POST(request: Request) {
     if (skipConfirm) {
       console.log("[printful] PRINTFUL_SKIP_CONFIRM active — leaving order as draft, not confirming:", orderId);
     } else {
-      const confirmResponse = await fetch(`https://api.printful.com/orders/${orderId}/confirm`, {
-        method: "POST",
-        headers: printfulHeaders,
-      });
-      const confirmData = await confirmResponse.json();
+      const { body: confirmData } = await confirmOrder(orderId);
       console.log("[printful] order confirmed", confirmData);
     }
 
