@@ -4,6 +4,7 @@ import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Anton } from 'next/font/google';
+import { usePreviewImage } from '@/lib/design/use-preview-image';
 
 const anton = Anton({ subsets: ['latin'], weight: '400', display: 'swap' });
 
@@ -39,6 +40,14 @@ function TshirtContent() {
   // the URL-sync effect there (see app/page.tsx) can restore it, instead of
   // resetting to a blank configuration.
   const backHref = `/?${designQuery}`;
+
+  // 'design' variant — a distinct cache namespace from the home borne's
+  // 'PREVIEW_FORMAT' (share) previews, since this is a different endpoint
+  // producing a different (full print-size) image. If the home page's own
+  // preload already warmed this exact combination (or the browser's HTTP
+  // cache still has it from the last time this page itself fetched it),
+  // this renders instantly instead of showing a blank chest for ~1.3s.
+  const previewSrc = usePreviewImage(designSrc, { pain, viande, crudites, sauces }, 'design');
 
   const handleCommander = async () => {
     setError('');
@@ -90,9 +99,14 @@ function TshirtContent() {
               <img src="/tshirt-base.png" alt="T-shirt mockup" className="tshirtImg" />
               {/* Same PNG, same engine, same query params as the file sent to
                   Printful — this is a direct preview of the real print file,
-                  not a separate approximation. */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={designSrc} alt="Aperçu de ton design" className="chestDesign" />
+                  not a separate approximation. previewSrc (not designSrc
+                  directly) so a combination already cached this session
+                  (e.g. preloaded from the home page) shows immediately
+                  instead of leaving a blank chest while /api/design loads. */}
+              {previewSrc && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={previewSrc} alt="Aperçu de ton design" className="chestDesign" />
+              )}
             </div>
           </div>
         </div>

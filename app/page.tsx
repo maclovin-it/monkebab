@@ -11,6 +11,7 @@ import {
   SAUCES_MAX,
   sanitizeSelectionFromParams,
 } from '@/lib/design/options';
+import { usePreviewImage } from '@/lib/design/use-preview-image';
 
 const anton = Anton({ subsets: ['latin'], weight: '400', display: 'swap' });
 
@@ -397,6 +398,21 @@ function HomeContent() {
     return `/api/share?${params.toString()}`;
   }, [debouncedSelectionQuery]);
 
+  // Same debounced selection shareSrc is built from, decoded back into a
+  // KebabSelection for cache-keying — reuses sanitizeSelectionFromParams
+  // (already imported) rather than re-deriving pain/viande/crudites/sauces
+  // by hand.
+  const debouncedSelection = useMemo(
+    () => sanitizeSelectionFromParams(new URLSearchParams(debouncedSelectionQuery)),
+    [debouncedSelectionQuery]
+  );
+
+  // Never binds <img src> directly to shareSrc — that would clear the
+  // borne's screen the instant the selection changes, before the new image
+  // has loaded. This holds the previous frame until the next one is ready
+  // (from the in-memory cache or a real fetch), then swaps once.
+  const previewSrc = usePreviewImage(shareSrc, debouncedSelection, PREVIEW_FORMAT);
+
   const fetchShareBlob = async (fmt: ExportFormat): Promise<Blob | null> => {
     // Built from the *current* selection, not the debounced preview one —
     // a click is a deliberate, single action, not part of the
@@ -588,9 +604,13 @@ function HomeContent() {
                       that ever decides these 4 lines; this just displays
                       its output. Always rendered at PREVIEW_FORMAT — the
                       borne's shape never changes with the export format
-                      picked below. */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={shareSrc} alt="Aperçu de ton design" className="previewImage" />
+                      picked below. previewSrc (not shareSrc directly) so
+                      the screen holds its last frame instead of flashing
+                      blank while the next selection's image loads. */}
+                  {previewSrc && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={previewSrc} alt="Aperçu de ton design" className="previewImage" />
+                  )}
                 </div>
               </div>
 
