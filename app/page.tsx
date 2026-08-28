@@ -383,7 +383,13 @@ function HomeContent() {
     () => buildKebabParams(pain, viande, crudites, sauces).toString(),
     [pain, viande, crudites, sauces]
   );
-  const debouncedSelectionQuery = useDebouncedValue(selectionQuery, 220);
+  // 80ms: short enough to feel immediate (measured server render alone is
+  // ~360ms per new combination — the debounce was never the dominant cost),
+  // long enough to still collapse a genuine rapid-click burst into a single
+  // request instead of one per click. <img src> swapping is itself race-safe
+  // (the browser never commits a stale in-flight load once src has moved on
+  // to a newer value), so this doesn't risk showing an outdated preview.
+  const debouncedSelectionQuery = useDebouncedValue(selectionQuery, 80);
 
   const shareSrc = useMemo(() => {
     const params = new URLSearchParams(debouncedSelectionQuery);
@@ -981,13 +987,18 @@ function HomeContent() {
           width: min(100%, 1400px);
           display: flex;
           flex-direction: column;
-          gap: 10px;
+          /* MONKEBAB / BORNE DE COMMANDE / tagline read as one tight,
+             grouped intro block — uniform small gap between all three
+             (the tagline no longer gets its own larger margin-top on top
+             of this). */
+          gap: 5px;
           padding-right: 10px;
-          /* Real breathing room before the configurator — without this the
-             tagline and the first accordion row visually run into each
-             other, since .page has no row gap of its own. Kept modest so
-             the whole configurator+borne row sits higher on desktop. */
-          margin-bottom: 8px;
+          /* A real, distinct break before the configurator — bigger than
+             the gaps inside the intro block above, so PAIN doesn't run
+             into the tagline. Compacting the block above by the same
+             amount it grows by here keeps the configurator's own vertical
+             position unchanged, net. */
+          margin-bottom: 19px;
         }
 
         .titleBlock h1 {
@@ -1005,7 +1016,6 @@ function HomeContent() {
         }
 
         .titleBlock p.tagline {
-          margin-top: 6px;
           opacity: 0.62;
           letter-spacing: 0.03em;
           font-size: 0.85rem;
