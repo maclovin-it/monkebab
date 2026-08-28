@@ -2,6 +2,7 @@ import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { getResend } from "@/lib/resend";
 import { createOrder, confirmOrder } from "@/lib/printful";
+import { recordSale } from "@/lib/stats/record-sale";
 import {
   ORDER_CONFIRMATION_SUBJECT,
   renderOrderConfirmationHtml,
@@ -19,6 +20,25 @@ const ORDER_CONFIRMATION_FROM = "Mon Kebab <commande@monkebab.xyz>";
 // that has no printFileUrl in its metadata.
 const PRODUCT_MOCKUP_URL =
   "https://res.cloudinary.com/dtyn7j361/image/upload/v1777654524/MOCK_UP_TA_COMMANDE_PERSONNE%CC%81LISE%CC%81E_kkafkj.png";
+
+// Best-effort stats recording: a paid t-shirt is a real sale regardless of
+// what happens afterward (Printful outage, email failure), so this runs
+// independently of and before the Printful/email logic. Deduplicated at the
+// database level (UNIQUE stripe_session_id + ON CONFLICT DO NOTHING), so
+// it's safe to call for both checkout.session.completed and
+// checkout.session.async_payment_succeeded without risking a double count.
+async function recordSaleBestEffort(session: Stripe.Checkout.Session) {
+  if (session.payment_status !== "paid") return;
+
+  const { bread, meat, vegetables, sauces } = session.metadata ?? {};
+
+  try {
+    await recordSale({ stripeSessionId: session.id, bread, meat, vegetables, sauces });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown stats error";
+    console.error("[stats] record sale failed", message);
+  }
+}
 
 function formatAmount(session: Stripe.Checkout.Session): string {
   const total = session.amount_total;
@@ -57,6 +77,8 @@ export async function POST(request: Request) {
       return Response.json({ received: true });
     }
     processedSessions.add(session.id);
+
+    await recordSaleBestEffort(session);
 
     const { size, bread, meat, vegetables, sauces, printFileUrl } = session.metadata ?? {};
 
@@ -188,6 +210,15 @@ export async function POST(request: Request) {
         console.error("[email] order confirmation failed", message);
       }
     }
+  } else if (event.type === "checkout.session.async_payment_succeeded") {
+    // Delayed payment methods (e.g. bank transfer) don't have payment_status
+    // "paid" yet at checkout.session.completed — this event confirms success
+    // later. Order fulfillment (Printful/email) for delayed payment methods
+    // is out of scope here; this only ensures the sale is still counted in
+    // stats. stripe_session_id dedup makes this safe even if a session
+    // somehow triggers both event types.
+    const session = event.data.object as Stripe.Checkout.Session;
+    await recordSaleBestEffort(session);
   }
 
   return Response.json({ received: true });

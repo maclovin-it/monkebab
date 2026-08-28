@@ -82,3 +82,30 @@ export function validateSelection(selection: KebabSelection): ValidationResult {
 
   return { ok: errors.length === 0, errors };
 }
+
+/** Menu order, not click order — the same canonicalization used to render
+ * the print file (lib/design/render.ts), reused here so a combination_key
+ * never depends on which order the customer clicked things in. */
+export function canonicalCrudites(crudites: string[]): string[] {
+  return CRUDITES_OPTIONS.filter((c) => crudites.includes(c));
+}
+
+export function canonicalSauces(sauces: string[]): string[] {
+  return SAUCES_OPTIONS.filter((s) => sauces.includes(s));
+}
+
+/**
+ * Canonical, deterministic representation of a selection — the same set of
+ * choices always produces the same key, regardless of click order. Used to
+ * group sales by combination for stats (popularity/rarity), never for
+ * rendering.
+ */
+export function buildCombinationKey(selection: KebabSelection): string {
+  const pain = selection.pain || 'SANS_PAIN';
+  const viande = selection.viande || 'SANS_VIANDE';
+  const crudites = canonicalCrudites(selection.crudites);
+  const sauces = canonicalSauces(selection.sauces);
+  const cruditesPart = crudites.length ? crudites.join(',') : 'SANS_CRUDITES';
+  const saucesPart = sauces.length ? sauces.join(',') : 'SANS_SAUCE';
+  return `${pain}|${viande}|${cruditesPart}|${saucesPart}`;
+}
