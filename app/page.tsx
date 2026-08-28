@@ -21,8 +21,10 @@ const saucesOptions: readonly string[] = SAUCES_OPTIONS;
 
 // Pixel dimensions for each format live server-side (lib/design/share.ts
 // SHARE_SIZES) — the client only needs the format labels themselves to
-// build the /api/share query and the format-switch buttons.
-const exportFormats = ['1:1', '4:5', '9:16'] as const;
+// build the /api/share query and the format dialog. Order here is the
+// order they're listed in the dialog: Story first (the primary sharing
+// format), then Post, then Carré.
+const exportFormats = ['9:16', '4:5', '1:1'] as const;
 type ExportFormat = (typeof exportFormats)[number];
 type SectionKey = 'PAIN' | 'VIANDE' | 'CRUDITES' | 'SAUCES';
 const sectionOrder: SectionKey[] = ['PAIN', 'VIANDE', 'CRUDITES', 'SAUCES'];
@@ -72,8 +74,13 @@ function IconViande() {
 function IconCrudites() {
   return (
     <svg {...iconProps} className="sectionIcon" aria-hidden="true">
-      <path d="M12 21c0-7 3-13 8-16-1 7-3 13-8 16z" />
-      <path d="M12 21c0-6-2.5-11-7-14" />
+      {/* Simple pointed leaf (two mirrored curves meeting top and bottom)
+          with a straight center vein — a rotated ellipse was tried first
+          but at this stroke width it read as a "prohibited" circle-slash,
+          not a leaf; this shape is deliberately wide enough that the
+          1.5-unit stroke stays a visible hollow outline, not a fill. */}
+      <path d="M12 3.5c7.5 4 7.5 13 0 17c-7.5-4-7.5-13 0-17z" />
+      <path d="M12 5v15" />
     </svg>
   );
 }
@@ -653,6 +660,11 @@ function HomeContent() {
           grid-template-rows: auto minmax(0, 1fr);
           background: #000;
           color: #fff;
+          /* Anton only ships one real weight (400) — anywhere this page
+             asks for font-weight:700 the browser was faking it by fattening
+             strokes algorithmically, which is what made the UI text read as
+             heavy/"boudiné" on top of an already-bold display face. */
+          font-synthesis: none;
           overflow: hidden;
         }
 
@@ -705,7 +717,7 @@ function HomeContent() {
           min-height: 0;
           display: flex;
           flex-direction: column;
-          gap: 16px;
+          gap: 12px;
         }
 
         /* The "borne" — a kiosk screen bezel around the live preview. The
@@ -722,7 +734,7 @@ function HomeContent() {
           background: #050505;
           border: 1px solid #666;
           border-radius: 18px;
-          padding: 20px;
+          padding: 16px;
           box-sizing: border-box;
           display: flex;
           flex-direction: column;
@@ -735,20 +747,20 @@ function HomeContent() {
           font-size: 0.8rem;
           letter-spacing: 0.25em;
           opacity: 0.6;
-          padding-bottom: 12px;
-          margin-bottom: 12px;
+          padding-bottom: 8px;
+          margin-bottom: 8px;
           border-bottom: 1px solid #262626;
         }
 
         .validationCard {
           width: 100%;
           flex-shrink: 0;
-          padding-top: 12px;
-          margin-top: 12px;
+          padding-top: 5px;
+          margin-top: 5px;
           border-top: 1px solid #262626;
           display: flex;
           flex-direction: column;
-          gap: 5px;
+          gap: 4px;
           box-sizing: border-box;
           overflow: hidden;
         }
@@ -815,6 +827,11 @@ function HomeContent() {
 
         .previewCard {
           width: 100%;
+          /* Never let this be the thing that silently shrinks when the
+             bezel is tight on vertical space — the rendered order must
+             never be visibly cropped. If space really runs out, .borne can
+             grow past its row instead (visible/obvious in QA), not this. */
+          flex-shrink: 0;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -825,13 +842,16 @@ function HomeContent() {
            an export format is picked in the share/download dialog. Capped
            at a fixed max-width so the borne has a natural, bounded height
            instead of growing to fill whatever space a tall viewport offers. */
+        /* No border/background of its own — the rendered PNG already has
+           its own frame baked in (drawn server-side by lib/design/share.ts,
+           untouched here), so a second CSS frame directly around it just
+           produced a redundant nested-boxes look. This is spacing only,
+           not another frame; the bezel (.borne) is the sole CSS-level one. */
         .previewFrame {
           aspect-ratio: 4 / 5;
           width: 100%;
-          max-width: 240px;
-          background: #000;
-          border: 1px solid #333;
-          padding: 14px;
+          max-width: 300px;
+          padding: 8px;
           display: flex;
           justify-content: center;
           align-items: center;
@@ -854,10 +874,10 @@ function HomeContent() {
           color: #fff;
           width: 100%;
           height: 100%;
-          font-weight: 700;
+          font-weight: 400;
           font-size: 0.92rem;
           text-transform: uppercase;
-          letter-spacing: 0.08em;
+          letter-spacing: 0.05em;
           cursor: pointer;
           transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
         }
@@ -897,10 +917,10 @@ function HomeContent() {
           border-bottom: 1px solid #333;
           background: #000;
           color: #fff;
-          font-weight: 700;
+          font-weight: 400;
           font-size: 0.85rem;
           text-transform: uppercase;
-          letter-spacing: 0.06em;
+          letter-spacing: 0.04em;
           cursor: pointer;
           transition: background 0.2s ease, color 0.2s ease;
         }
@@ -931,10 +951,10 @@ function HomeContent() {
           border: 1px solid #fff;
           background: #fff;
           color: #000;
-          font-weight: 700;
+          font-weight: 400;
           font-size: 0.92rem;
           text-transform: uppercase;
-          letter-spacing: 0.08em;
+          letter-spacing: 0.05em;
           cursor: pointer;
           transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
         }
@@ -963,6 +983,11 @@ function HomeContent() {
           flex-direction: column;
           gap: 10px;
           padding-right: 10px;
+          /* Real breathing room before the configurator — without this the
+             tagline and the first accordion row visually run into each
+             other, since .page has no row gap of its own. Kept modest so
+             the whole configurator+borne row sits higher on desktop. */
+          margin-bottom: 8px;
         }
 
         .titleBlock h1 {
@@ -974,16 +999,16 @@ function HomeContent() {
 
         .titleBlock p {
           margin: 0;
-          opacity: 0.72;
-          letter-spacing: 0.22em;
-          font-size: 0.95rem;
+          opacity: 0.82;
+          letter-spacing: 0.16em;
+          font-size: 1rem;
         }
 
         .titleBlock p.tagline {
-          margin-top: 4px;
-          opacity: 0.5;
+          margin-top: 6px;
+          opacity: 0.62;
           letter-spacing: 0.03em;
-          font-size: 0.8rem;
+          font-size: 0.85rem;
         }
 
         .accordion {
@@ -1011,8 +1036,9 @@ function HomeContent() {
           border: none;
           cursor: pointer;
           text-transform: uppercase;
-          font-weight: 700;
-          letter-spacing: 0.1em;
+          /* Anton's real (only) weight — see .page's font-synthesis:none */
+          font-weight: 400;
+          letter-spacing: 0.06em;
           font-size: 1.15rem;
         }
 
@@ -1033,9 +1059,14 @@ function HomeContent() {
 
         .summary {
           opacity: 0.78;
+          font-weight: 400;
           font-size: 1rem;
+          /* Tighter than the header's own tracking — long comma-separated
+             values ("SALADE, TOMATE, OIGNON") need it to avoid reading as
+             overly stretched/compressed against the available width. */
+          letter-spacing: 0.02em;
           text-align: right;
-          max-width: 50%;
+          max-width: 58%;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -1080,10 +1111,10 @@ function HomeContent() {
           color: #fff;
           min-height: 60px;
           padding: 0 16px;
-          font-weight: 700;
+          font-weight: 400;
           font-size: 1.05rem;
           text-transform: uppercase;
-          letter-spacing: 0.08em;
+          letter-spacing: 0.05em;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -1094,7 +1125,7 @@ function HomeContent() {
         .option.compact {
           min-height: 44px;
           font-size: 0.88rem;
-          letter-spacing: 0.06em;
+          letter-spacing: 0.03em;
           padding: 0 10px;
         }
 
@@ -1180,11 +1211,11 @@ function HomeContent() {
           }
 
           .titleBlock {
-            margin-bottom: 32px;
+            margin-bottom: 36px;
           }
 
           .titleBlock p {
-            font-size: 0.95rem;
+            font-size: 1rem;
             line-height: 1.2;
           }
 
@@ -1276,8 +1307,8 @@ function HomeContent() {
 
           .validationCard {
             width: 100%;
-            padding-top: 10px;
-            margin-top: 10px;
+            padding-top: 6px;
+            margin-top: 6px;
           }
 
           .validationScoreRow {
@@ -1318,11 +1349,18 @@ function HomeContent() {
           .accordionHeader {
             flex-direction: column;
             align-items: flex-start;
+            gap: 6px;
           }
 
           .summary {
             max-width: 100%;
             white-space: normal;
+            /* A touch more discreet than the category label on mobile,
+               reinforcing "category, then current choice" as you read down
+               the stacked header instead of the two reading with equal
+               weight. */
+            opacity: 0.62;
+            font-size: 0.92rem;
           }
         }
       `}</style>
