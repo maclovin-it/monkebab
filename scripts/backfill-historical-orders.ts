@@ -11,7 +11,13 @@
 // creates duplicates and never collides with a real future sale.
 
 import { neon } from '@neondatabase/serverless';
-import { validateSelection, buildCombinationKey, type KebabSelection } from '../lib/design/options';
+import {
+  validateSelection,
+  buildCombinationKey,
+  canonicalCrudites,
+  canonicalSauces,
+  type KebabSelection,
+} from '../lib/design/options';
 
 interface HistoricalOrder {
   /** Synthetic id — must be unique across this list, must never look like a
@@ -27,8 +33,11 @@ interface HistoricalOrder {
 }
 
 const HISTORICAL_ORDERS: HistoricalOrder[] = [
-  // TODO: remplacer par les vraies commandes avant de lancer ce script, par exemple :
-  // { id: 'historical-001', pain: 'Naan', viande: 'Kebab', crudites: ['Salade', 'Tomate'], sauces: ['Algérienne'], date: '2026-07-01' },
+  { id: 'historical-2026-01', pain: 'Pita', viande: 'Kebab', crudites: ['Salade', 'Tomate', 'Oignon'], sauces: ['Biggy'], date: '2026-07-29' },
+  { id: 'historical-2026-02', pain: 'Naan', viande: 'Kebab', crudites: ['Salade', 'Tomate', 'Oignon'], sauces: ['Algérienne', 'Blanche'], date: '2026-07-27' },
+  { id: 'historical-2026-03', pain: '', viande: '', crudites: [], sauces: [], date: '2026-07-25' },
+  { id: 'historical-2026-04', pain: 'Galette', viande: 'Kebab', crudites: [], sauces: ['Blanche', 'Barbecue'], date: '2026-06-19' },
+  { id: 'historical-2026-05', pain: 'Naan', viande: 'Poulet Tikka', crudites: ['Salade', 'Tomate', 'Oignon'], sauces: ['Algérienne', 'Barbecue'], date: '2026-05-15' },
 ];
 
 async function main() {
@@ -70,10 +79,14 @@ async function main() {
     }
 
     const combinationKey = buildCombinationKey(selection);
+    // Same canonical (menu) order as the live webhook path — not input
+    // order — so the raw columns stay safe to GROUP BY directly later.
+    const crudites = canonicalCrudites(selection.crudites);
+    const sauces = canonicalSauces(selection.sauces);
 
     await sql`
       INSERT INTO orders (stripe_session_id, pain, viande, crudites, sauces, combination_key, created_at)
-      VALUES (${order.id}, ${selection.pain}, ${selection.viande}, ${selection.crudites}, ${selection.sauces}, ${combinationKey}, ${order.date})
+      VALUES (${order.id}, ${selection.pain}, ${selection.viande}, ${crudites}, ${sauces}, ${combinationKey}, ${order.date})
       ON CONFLICT (stripe_session_id) DO NOTHING
     `;
 

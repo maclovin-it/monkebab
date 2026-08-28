@@ -1,5 +1,11 @@
 import { getSql } from './db';
-import { validateSelection, buildCombinationKey, type KebabSelection } from '@/lib/design/options';
+import {
+  validateSelection,
+  buildCombinationKey,
+  canonicalCrudites,
+  canonicalSauces,
+  type KebabSelection,
+} from '@/lib/design/options';
 
 export interface RecordSaleParams {
   /** Stripe Checkout Session id — the sole deduplication key. */
@@ -43,11 +49,17 @@ export async function recordSale(params: RecordSaleParams): Promise<void> {
   }
 
   const combinationKey = buildCombinationKey(selection);
+  // Store crudités/sauces in the same canonical (menu) order used for the
+  // combination_key — not click order. This keeps every raw column safe to
+  // GROUP BY directly later (e.g. most common sauce *pair*), not just via
+  // unnest() for single-item stats, without needing to re-sort at query time.
+  const crudites = canonicalCrudites(selection.crudites);
+  const sauces = canonicalSauces(selection.sauces);
   const sql = getSql();
 
   await sql`
     INSERT INTO orders (stripe_session_id, pain, viande, crudites, sauces, combination_key)
-    VALUES (${params.stripeSessionId}, ${selection.pain}, ${selection.viande}, ${selection.crudites}, ${selection.sauces}, ${combinationKey})
+    VALUES (${params.stripeSessionId}, ${selection.pain}, ${selection.viande}, ${crudites}, ${sauces}, ${combinationKey})
     ON CONFLICT (stripe_session_id) DO NOTHING
   `;
 }
