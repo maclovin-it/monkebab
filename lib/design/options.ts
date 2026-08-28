@@ -109,3 +109,31 @@ export function buildCombinationKey(selection: KebabSelection): string {
   const saucesPart = sauces.length ? sauces.join(',') : 'SANS_SAUCE';
   return `${pain}|${viande}|${cruditesPart}|${saucesPart}`;
 }
+
+/** Minimal shape both `URLSearchParams` and Next's `ReadonlyURLSearchParams`
+ * satisfy — accepted structurally so this works with either. */
+interface ParamsLike {
+  get(key: string): string | null;
+}
+
+/**
+ * Builds a valid KebabSelection from raw query params, silently dropping
+ * anything that isn't a real menu option instead of throwing — a crafted or
+ * stale URL (unknown values, a 3rd sauce, duplicates) must never crash the
+ * page. Used to restore the configurator's state from the URL (e.g. /tshirt
+ * -> back to /), so the same option lists stay the single source of truth
+ * for what counts as a valid choice.
+ */
+export function sanitizeSelectionFromParams(params: ParamsLike): KebabSelection {
+  const rawPain = params.get('pain') ?? '';
+  const rawViande = params.get('viande') ?? '';
+  const rawCrudites = (params.get('crudites') ?? '').split(',').filter(Boolean);
+  const rawSauces = (params.get('sauces') ?? '').split(',').filter(Boolean);
+
+  const pain = (PAIN_OPTIONS as readonly string[]).includes(rawPain) ? rawPain : '';
+  const viande = (VIANDE_OPTIONS as readonly string[]).includes(rawViande) ? rawViande : '';
+  const crudites = canonicalCrudites(Array.from(new Set(rawCrudites)));
+  const sauces = canonicalSauces(Array.from(new Set(rawSauces))).slice(0, SAUCES_MAX);
+
+  return { pain, viande, crudites, sauces };
+}

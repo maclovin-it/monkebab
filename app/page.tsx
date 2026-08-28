@@ -1,9 +1,16 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Anton } from 'next/font/google';
-import { PAIN_OPTIONS, VIANDE_OPTIONS, CRUDITES_OPTIONS, SAUCES_OPTIONS, SAUCES_MAX } from '@/lib/design/options';
+import {
+  PAIN_OPTIONS,
+  VIANDE_OPTIONS,
+  CRUDITES_OPTIONS,
+  SAUCES_OPTIONS,
+  SAUCES_MAX,
+  sanitizeSelectionFromParams,
+} from '@/lib/design/options';
 
 const anton = Anton({ subsets: ['latin'], weight: '400', display: 'swap' });
 
@@ -392,6 +399,17 @@ function downloadBlob(blob: Blob, format: ExportFormat) {
   URL.revokeObjectURL(url);
 }
 
+/** Shared with the sync-to-URL effect and the /tshirt handoff, so the query
+ * shape is built in exactly one place. */
+function buildKebabParams(pain: string, viande: string, crudites: string[], sauces: string[]): URLSearchParams {
+  const params = new URLSearchParams();
+  if (pain) params.set('pain', pain);
+  if (viande) params.set('viande', viande);
+  if (crudites.length) params.set('crudites', crudites.join(','));
+  if (sauces.length) params.set('sauces', sauces.join(','));
+  return params;
+}
+
 function getSectionSummary(section: SectionKey, pain: string, viande: string, crudites: string[], sauces: string[]) {
   if (section === 'PAIN') {
     return pain ? pain.toUpperCase() : 'SANS PAIN';
@@ -409,13 +427,20 @@ function getSectionSummary(section: SectionKey, pain: string, viande: string, cr
   return sauces.length ? sauces.map((item) => item.toUpperCase()).join(', ') : 'SANS SAUCE';
 }
 
-export default function Home() {
+function HomeContent() {
   const previewCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [pain, setPain] = useState('');
-  const [viande, setViande] = useState('');
-  const [crudites, setCrudites] = useState<string[]>([]);
-  const [sauces, setSauces] = useState<string[]>([]);
-  const [openSection, setOpenSection] = useState<SectionKey>('PAIN');
+  const searchParams = useSearchParams();
+  // Restores the previous configuration when arriving from /tshirt (via its
+  // "← RETOUR" link, or the browser's native Back button — see the
+  // URL-sync effect below). A plain visit to "/" has no params, so this
+  // resolves to the same blank selection as before. Unknown/invalid values
+  // are silently dropped by sanitizeSelectionFromParams, never crash.
+  const initialSelection = sanitizeSelectionFromParams(searchParams);
+  const [pain, setPain] = useState(initialSelection.pain);
+  const [viande, setViande] = useState(initialSelection.viande);
+  const [crudites, setCrudites] = useState<string[]>(initialSelection.crudites);
+  const [sauces, setSauces] = useState<string[]>(initialSelection.sauces);
+  const [openSection, setOpenSection] = useState<SectionKey>(initialSelection.pain ? 'VIANDE' : 'PAIN');
   const [format, setFormat] = useState<ExportFormat>('9:16');
 
   const previewLines = useMemo(() => buildPreviewLines(pain, viande, crudites, sauces), [pain, viande, crudites, sauces]);
@@ -426,12 +451,18 @@ export default function Home() {
 
   const router = useRouter();
 
+  // Keeps "/" itself in sync with the current selection (replace, not push
+  // — no extra history entries). This is what makes the browser's native
+  // Back button from /tshirt land on a "/" that still has the previous
+  // configuration, instead of a blank one.
+  useEffect(() => {
+    const query = buildKebabParams(pain, viande, crudites, sauces).toString();
+    router.replace(query ? `/?${query}` : '/', { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pain, viande, crudites, sauces]);
+
   const handleTshirt = () => {
-    const params = new URLSearchParams();
-    if (pain) params.set('pain', pain);
-    if (viande) params.set('viande', viande);
-    if (crudites.length) params.set('crudites', crudites.join(','));
-    if (sauces.length) params.set('sauces', sauces.join(','));
+    const params = buildKebabParams(pain, viande, crudites, sauces);
     router.push(`/tshirt?${params.toString()}`);
   };
 
@@ -509,6 +540,7 @@ export default function Home() {
       <header className="titleBlock">
         <h1>MONKEBAB</h1>
         <p>BORNE DE COMMANDE</p>
+        <p className="tagline">COMPOSE TON KEBAB. ON L&rsquo;IMPRIME SUR UN T-SHIRT.</p>
       </header>
 
       <div className="layout">
@@ -519,13 +551,29 @@ export default function Home() {
                 const active = openSection === section;
                 return (
                   <div key={section} className={`accordionSection ${active ? 'active' : ''}`}>
-                    <button type="button" className="accordionHeader" onClick={() => setOpenSection(section)}>
-                      <span>{section}</span>
+                    <button
+                      type="button"
+                      id={`accordion-header-${section}`}
+                      className="accordionHeader"
+                      onClick={() => setOpenSection(section)}
+                      aria-expanded={active}
+                      aria-controls={`accordion-panel-${section}`}
+                      aria-label={`${section}${section === 'SAUCES' ? ', 2 max' : ''}, ${getSectionSummary(section, pain, viande, crudites, sauces)}`}
+                    >
+                      <span>
+                        {section}
+                        {section === 'SAUCES' && <span className="sectionHint">2 MAX</span>}
+                      </span>
                       <span className="summary">{getSectionSummary(section, pain, viande, crudites, sauces)}</span>
                     </button>
 
                     {active ? (
-                      <div className="accordionBody">
+                      <div
+                        className="accordionBody"
+                        id={`accordion-panel-${section}`}
+                        role="region"
+                        aria-labelledby={`accordion-header-${section}`}
+                      >
                         {section === 'PAIN' && (
                           <div className="grid twoColumns">
                             {painOptions.map((item) => (
@@ -860,11 +908,14 @@ export default function Home() {
         }
 
         .tshirtButton {
+          /* Primary action — filled, same treatment as the COMMANDER button
+             on /tshirt, so it reads as the one action that matters versus
+             the secondary PARTAGER/TÉLÉCHARGER pair below it. */
           width: 100%;
           height: 56px;
-          border: 1px solid #666;
-          background: #000;
-          color: #fff;
+          border: 1px solid #fff;
+          background: #fff;
+          color: #000;
           font-weight: 700;
           font-size: 0.92rem;
           text-transform: uppercase;
@@ -874,12 +925,12 @@ export default function Home() {
         }
 
         .tshirtButton:hover {
-          border-color: #999;
+          background: #e0e0e0;
         }
 
         .tshirtButton:active {
-          background: #fff;
-          color: #000;
+          background: #000;
+          color: #fff;
           border-color: #fff;
         }
 
@@ -911,6 +962,13 @@ export default function Home() {
           opacity: 0.72;
           letter-spacing: 0.22em;
           font-size: 0.95rem;
+        }
+
+        .titleBlock p.tagline {
+          margin-top: 4px;
+          opacity: 0.5;
+          letter-spacing: 0.03em;
+          font-size: 0.8rem;
         }
 
         .accordion {
@@ -951,6 +1009,14 @@ export default function Home() {
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+        }
+
+        .sectionHint {
+          margin-left: 8px;
+          opacity: 0.5;
+          font-size: 0.68rem;
+          letter-spacing: 0.06em;
+          font-weight: 400;
         }
 
         .accordionBody {
@@ -1207,5 +1273,13 @@ export default function Home() {
         }
       `}</style>
     </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div style={{ background: '#000', minHeight: '100vh' }} />}>
+      <HomeContent />
+    </Suspense>
   );
 }

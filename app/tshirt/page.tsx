@@ -33,7 +33,12 @@ function TshirtContent() {
   if (viande) designParams.set('viande', viande);
   if (crudites.length) designParams.set('crudites', crudites.join(','));
   if (sauces.length) designParams.set('sauces', sauces.join(','));
-  const designSrc = `/api/design?${designParams.toString()}`;
+  const designQuery = designParams.toString();
+  const designSrc = `/api/design?${designQuery}`;
+  // Same params as designSrc — carries the exact selection back to "/" so
+  // the URL-sync effect there (see app/page.tsx) can restore it, instead of
+  // resetting to a blank configuration.
+  const backHref = `/?${designQuery}`;
 
   const handleCommander = async () => {
     setError('');
@@ -70,7 +75,7 @@ function TshirtContent() {
   return (
     <main className={`page ${anton.className}`}>
       <header className="topBar">
-        <Link href="/" className="backLink">
+        <Link href={backHref} className="backLink">
           ← RETOUR
         </Link>
         <h1>TON T-SHIRT</h1>
