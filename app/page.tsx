@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Anton } from 'next/font/google';
 import {
@@ -26,6 +26,73 @@ const exportFormats = ['1:1', '4:5', '9:16'] as const;
 type ExportFormat = (typeof exportFormats)[number];
 type SectionKey = 'PAIN' | 'VIANDE' | 'CRUDITES' | 'SAUCES';
 const sectionOrder: SectionKey[] = ['PAIN', 'VIANDE', 'CRUDITES', 'SAUCES'];
+
+// The live preview inside the borne always renders at this ratio — it's
+// decoupled from the export format so choosing STORY/POST/CARRÉ at share or
+// download time never resizes the borne itself. 4:5 was picked because it
+// fills the bezel's width better than 9:16 (less dead space on the sides)
+// and happens to match the print canvas's own 3000x3750 proportions.
+const PREVIEW_FORMAT: ExportFormat = '4:5';
+
+const formatLabels: Record<ExportFormat, string> = {
+  '9:16': 'STORY — 9:16',
+  '4:5': 'POST — 4:5',
+  '1:1': 'CARRÉ — 1:1',
+};
+
+const iconProps = {
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.5,
+  strokeLinecap: 'round' as const,
+  strokeLinejoin: 'round' as const,
+};
+
+function IconPain() {
+  return (
+    <svg {...iconProps} className="sectionIcon" aria-hidden="true">
+      <ellipse cx="12" cy="12" rx="9" ry="6" />
+      <path d="M8 10.5l2.4 3M13 9.5l2.4 3.5" />
+    </svg>
+  );
+}
+
+function IconViande() {
+  return (
+    <svg {...iconProps} className="sectionIcon" aria-hidden="true">
+      <path d="M12 3v18" />
+      <rect x="8.5" y="5.5" width="7" height="4.5" rx="2.25" />
+      <rect x="8.5" y="10.5" width="7" height="4.5" rx="2.25" />
+      <rect x="8.5" y="15.5" width="7" height="3.5" rx="1.75" />
+    </svg>
+  );
+}
+
+function IconCrudites() {
+  return (
+    <svg {...iconProps} className="sectionIcon" aria-hidden="true">
+      <path d="M12 21c0-7 3-13 8-16-1 7-3 13-8 16z" />
+      <path d="M12 21c0-6-2.5-11-7-14" />
+    </svg>
+  );
+}
+
+function IconSauces() {
+  return (
+    <svg {...iconProps} className="sectionIcon" aria-hidden="true">
+      <path d="M10 3h4v2.2c1.2.5 2 1.7 2 3.1V19a2 2 0 01-2 2h-4a2 2 0 01-2-2V8.3c0-1.4.8-2.6 2-3.1z" />
+      <path d="M10 9.5h4" />
+    </svg>
+  );
+}
+
+const sectionIcons: Record<SectionKey, typeof IconPain> = {
+  PAIN: IconPain,
+  VIANDE: IconViande,
+  CRUDITES: IconCrudites,
+  SAUCES: IconSauces,
+};
 
 function formatCrudites(selected: string[]) {
   if (selected.length === 0) {
@@ -275,7 +342,8 @@ function HomeContent() {
   const [crudites, setCrudites] = useState<string[]>(initialSelection.crudites);
   const [sauces, setSauces] = useState<string[]>(initialSelection.sauces);
   const [openSection, setOpenSection] = useState<SectionKey>(initialSelection.pain ? 'VIANDE' : 'PAIN');
-  const [format, setFormat] = useState<ExportFormat>('9:16');
+  const [pendingAction, setPendingAction] = useState<'share' | 'download' | null>(null);
+  const formatDialogRef = useRef<HTMLDialogElement>(null);
 
   const validation = useMemo(
     () => calculateValidationScore(pain, viande, crudites, sauces),
@@ -300,9 +368,10 @@ function HomeContent() {
   };
 
   // Selection changes are debounced before they reach the server so rapid
-  // clicking doesn't fire a render per click; the format switch is applied
-  // immediately (built from the debounced selection but the live format) —
-  // there's exactly one render per tap on 1:1/4:5/9:16, no flood risk there.
+  // clicking doesn't fire a render per click. The borne's live preview is
+  // always PREVIEW_FORMAT — it never depends on the export format the user
+  // later picks in the share/download dialog, so composing a kebab never
+  // resizes the borne.
   const selectionQuery = useMemo(
     () => buildKebabParams(pain, viande, crudites, sauces).toString(),
     [pain, viande, crudites, sauces]
@@ -311,50 +380,51 @@ function HomeContent() {
 
   const shareSrc = useMemo(() => {
     const params = new URLSearchParams(debouncedSelectionQuery);
-    params.set('format', format);
+    params.set('format', PREVIEW_FORMAT);
     return `/api/share?${params.toString()}`;
-  }, [debouncedSelectionQuery, format]);
+  }, [debouncedSelectionQuery]);
 
-  // PARTAGER/TÉLÉCHARGER act on the *current* selection, not the debounced
-  // preview one — a click is a deliberate, single action, not part of the
-  // rapid-interaction stream the debounce exists to smooth out.
-  const currentShareSrc = useMemo(() => {
+  const fetchShareBlob = async (fmt: ExportFormat): Promise<Blob | null> => {
+    // Built from the *current* selection, not the debounced preview one —
+    // a click is a deliberate, single action, not part of the
+    // rapid-interaction stream the debounce exists to smooth out.
     const params = buildKebabParams(pain, viande, crudites, sauces);
-    params.set('format', format);
-    return `/api/share?${params.toString()}`;
-  }, [pain, viande, crudites, sauces, format]);
-
-  const fetchShareBlob = async (): Promise<Blob | null> => {
-    const res = await fetch(currentShareSrc);
+    params.set('format', fmt);
+    const res = await fetch(`/api/share?${params.toString()}`);
     if (!res.ok) return null;
     return res.blob();
   };
 
-  const handleShare = async () => {
-    const blob = await fetchShareBlob();
+  const handleShare = async (fmt: ExportFormat) => {
+    const blob = await fetchShareBlob(fmt);
     if (!blob) return;
     if (navigator.share) {
       const file = new File([blob], 'monkebab.png', { type: 'image/png' });
       try {
         await navigator.share({ files: [file], title: 'Mon Kebab' });
       } catch {
-        downloadBlob(blob, format);
+        downloadBlob(blob, fmt);
       }
     } else {
-      downloadBlob(blob, format);
+      downloadBlob(blob, fmt);
     }
   };
 
-  const handleDownload = async () => {
-    const blob = await fetchShareBlob();
+  const handleDownload = async (fmt: ExportFormat) => {
+    const blob = await fetchShareBlob(fmt);
     if (!blob) return;
-    downloadBlob(blob, format);
+    downloadBlob(blob, fmt);
   };
 
-  const previewAspectRatio: Record<ExportFormat, string> = {
-    '1:1': '1 / 1',
-    '4:5': '4 / 5',
-    '9:16': '9 / 16',
+  const openFormatDialog = (action: 'share' | 'download') => {
+    setPendingAction(action);
+    formatDialogRef.current?.showModal();
+  };
+
+  const chooseFormat = (fmt: ExportFormat) => {
+    formatDialogRef.current?.close();
+    if (pendingAction === 'share') handleShare(fmt);
+    else if (pendingAction === 'download') handleDownload(fmt);
   };
 
   const selectPain = (item: string) => {
@@ -389,8 +459,6 @@ function HomeContent() {
   const optionClass = (active: boolean, compact = false) =>
     `option${active ? ' selected' : ''}${compact ? ' compact' : ''}`;
 
-  const formatButtonClass = (current: ExportFormat) => `formatButton${format === current ? ' active' : ''}`;
-
   return (
     <main className={`page ${anton.className}`}>
       <header className="titleBlock">
@@ -405,6 +473,7 @@ function HomeContent() {
             <div className="accordion">
               {sectionOrder.map((section) => {
                 const active = openSection === section;
+                const SectionIcon = sectionIcons[section];
                 return (
                   <div key={section} className={`accordionSection ${active ? 'active' : ''}`}>
                     <button
@@ -416,7 +485,8 @@ function HomeContent() {
                       aria-controls={`accordion-panel-${section}`}
                       aria-label={`${section}${section === 'SAUCES' ? ', 2 max' : ''}, ${getSectionSummary(section, pain, viande, crudites, sauces)}`}
                     >
-                      <span>
+                      <span className="headerLabel">
+                        <SectionIcon />
                         {section}
                         {section === 'SAUCES' && <span className="sectionHint">2 MAX</span>}
                       </span>
@@ -495,43 +565,41 @@ function HomeContent() {
 
         <section className="rightPanel">
           <div className="rightStack">
-            <div className="validationCard">
-              <div className="validationHeader">VALIDATION DU CRÉATEUR</div>
-              <div className="validationScoreRow">
-                <span className="validationEmoji">{validation.emoji}</span>
-                <span className="validationScore">{validation.score}%</span>
-              </div>
-              <div className="validationBar">
-                <div className="validationFill" style={{ width: `${validation.ratio}%` }} />
-              </div>
-              <div className="validationLabel">{validation.label}</div>
-            </div>
+            <div className="borne">
+              <div className="borneNameplate">MONKEBAB</div>
 
-            <div className="previewCard">
-              <div className="previewFrame" style={{ aspectRatio: previewAspectRatio[format] }}>
-                {/* Same renderDesign() composition as the print file and
-                    /tshirt — the deterministic engine is the only thing
-                    that ever decides these 4 lines; this just displays its
-                    output, dressed for the selected social format. */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={shareSrc} alt="Aperçu de ton design" className="previewImage" />
+              <div className="previewCard">
+                <div className="previewFrame">
+                  {/* Same renderDesign() composition as the print file and
+                      /tshirt — the deterministic engine is the only thing
+                      that ever decides these 4 lines; this just displays
+                      its output. Always rendered at PREVIEW_FORMAT — the
+                      borne's shape never changes with the export format
+                      picked below. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={shareSrc} alt="Aperçu de ton design" className="previewImage" />
+                </div>
               </div>
-            </div>
 
-            <div className="formatButtons">
-              {exportFormats.map((item) => (
-                <button key={item} type="button" className={formatButtonClass(item)} onClick={() => setFormat(item)}>
-                  {item}
-                </button>
-              ))}
+              <div className="validationCard">
+                <div className="validationHeader">VALIDATION DU CRÉATEUR</div>
+                <div className="validationScoreRow">
+                  <span className="validationEmoji">{validation.emoji}</span>
+                  <span className="validationScore">{validation.score}%</span>
+                </div>
+                <div className="validationBar">
+                  <div className="validationFill" style={{ width: `${validation.ratio}%` }} />
+                </div>
+                <div className="validationLabel">{validation.label}</div>
+              </div>
             </div>
 
             <div className="bottomActions">
               <div className="shareDownloadRow">
-                <button type="button" className="shareButton" onClick={handleShare}>
+                <button type="button" className="shareButton" onClick={() => openFormatDialog('share')}>
                   PARTAGER
                 </button>
-                <button type="button" className="downloadButton" onClick={handleDownload}>
+                <button type="button" className="downloadButton" onClick={() => openFormatDialog('download')}>
                   TÉLÉCHARGER
                 </button>
               </div>
@@ -542,6 +610,29 @@ function HomeContent() {
           </div>
         </section>
       </div>
+
+      <dialog
+        ref={formatDialogRef}
+        className="formatDialog"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) formatDialogRef.current?.close();
+        }}
+        // Native <dialog> is supposed to close on Escape on its own, but
+        // that default action doesn't reliably fire in every environment —
+        // this is a deterministic fallback, not a replacement; closing an
+        // already-closed dialog is a harmless no-op.
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') formatDialogRef.current?.close();
+        }}
+      >
+        <div className="formatDialogInner">
+          {exportFormats.map((fmt) => (
+            <button key={fmt} type="button" className="formatOption" onClick={() => chooseFormat(fmt)}>
+              {formatLabels[fmt]}
+            </button>
+          ))}
+        </div>
+      </dialog>
 
       <style jsx>{`
         /*
@@ -570,8 +661,9 @@ function HomeContent() {
           max-width: 1400px;
           margin: 0 auto;
           display: grid;
-          /* ~55% left / ~45% right — bigger right column as preferred */
-          grid-template-columns: minmax(0, 11fr) minmax(0, 9fr);
+          /* ~57% left / ~43% right — left gets a bit more room for the
+             larger accordion typography */
+          grid-template-columns: minmax(0, 12fr) minmax(0, 9fr);
           grid-template-rows: minmax(0, 1fr);
           gap: 48px;
           height: 100%;
@@ -596,7 +688,7 @@ function HomeContent() {
           min-height: 0;
           display: flex;
           flex-direction: column;
-          justify-content: center;
+          justify-content: flex-start;
         }
 
         .rightPanel {
@@ -613,19 +705,50 @@ function HomeContent() {
           min-height: 0;
           display: flex;
           flex-direction: column;
-          gap: 12px;
+          gap: 16px;
+        }
+
+        /* The "borne" — a kiosk screen bezel around the live preview. The
+           one deliberately rounded element in the app; a device cue built
+           from shape/border only, no texture/gradient/shadow. */
+        .borne {
+          /* Deliberately NOT flex:1 — a fixed-height accordion on the left
+             can't stretch to fill a tall viewport without looking broken,
+             so the borne is sized to its own (capped) content instead of
+             filling the row too. Both columns then pack at the top with
+             similar, viewport-independent heights rather than one
+             stretching to match whatever the other one happens to need. */
+          width: 100%;
+          background: #050505;
+          border: 1px solid #666;
+          border-radius: 18px;
+          padding: 20px;
+          box-sizing: border-box;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+        }
+
+        .borneNameplate {
+          flex-shrink: 0;
+          text-align: center;
+          font-size: 0.8rem;
+          letter-spacing: 0.25em;
+          opacity: 0.6;
+          padding-bottom: 12px;
+          margin-bottom: 12px;
+          border-bottom: 1px solid #262626;
         }
 
         .validationCard {
           width: 100%;
-          min-height: 120px;
           flex-shrink: 0;
-          background: #020202;
-          border: 1px solid #666;
-          padding: 16px;
+          padding-top: 12px;
+          margin-top: 12px;
+          border-top: 1px solid #262626;
           display: flex;
           flex-direction: column;
-          gap: 8px;
+          gap: 5px;
           box-sizing: border-box;
           overflow: hidden;
         }
@@ -638,8 +761,8 @@ function HomeContent() {
         }
 
         .validationHeader {
-          font-size: 0.75rem;
-          letter-spacing: 0.18em;
+          font-size: 0.62rem;
+          letter-spacing: 0.16em;
           text-transform: uppercase;
           color: #bbb;
         }
@@ -647,15 +770,15 @@ function HomeContent() {
         .validationScoreRow {
           display: flex;
           align-items: center;
-          gap: 12px;
-          font-size: 1.45rem;
+          gap: 8px;
+          font-size: 1.05rem;
           font-weight: 700;
           text-transform: uppercase;
           min-width: 0;
         }
 
         .validationEmoji {
-          font-size: 1.6rem;
+          font-size: 1.15rem;
           line-height: 1;
         }
 
@@ -666,7 +789,7 @@ function HomeContent() {
 
         .validationBar {
           width: 100%;
-          height: 8px;
+          height: 5px;
           border-radius: 999px;
           background: #111;
           border: 1px solid #444;
@@ -682,7 +805,7 @@ function HomeContent() {
 
         .validationLabel {
           color: #bbb;
-          font-size: 0.82rem;
+          font-size: 0.7rem;
           line-height: 1.4;
           letter-spacing: 0.02em;
           overflow: hidden;
@@ -692,23 +815,22 @@ function HomeContent() {
 
         .previewCard {
           width: 100%;
-          flex: 1 1 auto;
-          min-height: 0;
           display: flex;
           align-items: center;
           justify-content: center;
           overflow: hidden;
         }
 
-        /* aspect-ratio is set via inline style; size is constrained by
-           max-width/max-height so it always fits the previewCard cell */
+        /* Fixed aspect ratio — the borne's screen never changes shape when
+           an export format is picked in the share/download dialog. Capped
+           at a fixed max-width so the borne has a natural, bounded height
+           instead of growing to fill whatever space a tall viewport offers. */
         .previewFrame {
-          max-width: 100%;
-          max-height: 100%;
-          width: auto;
-          height: auto;
+          aspect-ratio: 4 / 5;
+          width: 100%;
+          max-width: 240px;
           background: #000;
-          border: 1px solid #666;
+          border: 1px solid #333;
           padding: 14px;
           display: flex;
           justify-content: center;
@@ -725,16 +847,6 @@ function HomeContent() {
           height: auto;
         }
 
-        .formatButtons {
-          width: 100%;
-          height: 56px;
-          flex-shrink: 0;
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 10px;
-        }
-
-        .formatButton,
         .downloadButton,
         .shareButton {
           border: 1px solid #666;
@@ -750,10 +862,56 @@ function HomeContent() {
           transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
         }
 
-        .formatButton.active {
+        .downloadButton:hover,
+        .shareButton:hover {
+          border-color: #999;
+        }
+
+        .formatDialog {
+          /* explicit margin:auto — a global CSS reset (Tailwind preflight)
+             zeroes <dialog>'s default margin, which is what the browser
+             normally uses to center a modal dialog; without restating it
+             here the dialog sticks to the inset:0 top-left corner instead */
+          margin: auto;
+          background: #000;
+          color: #fff;
+          border: 1px solid #666;
+          border-radius: 0;
+          padding: 0;
+          width: min(320px, 90vw);
+        }
+
+        :global(dialog.formatDialog::backdrop) {
+          background: rgba(0, 0, 0, 0.7);
+        }
+
+        .formatDialogInner {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .formatOption {
+          width: 100%;
+          height: 52px;
+          border: none;
+          border-bottom: 1px solid #333;
+          background: #000;
+          color: #fff;
+          font-weight: 700;
+          font-size: 0.85rem;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+          cursor: pointer;
+          transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .formatOption:last-child {
+          border-bottom: none;
+        }
+
+        .formatOption:hover {
           background: #fff;
           color: #000;
-          border-color: #fff;
         }
 
         .bottomActions {
@@ -830,7 +988,7 @@ function HomeContent() {
 
         .accordion {
           display: grid;
-          gap: 12px;
+          gap: 18px;
           overflow: hidden;
         }
 
@@ -844,7 +1002,7 @@ function HomeContent() {
 
         .accordionHeader {
           width: 100%;
-          padding: 18px 20px;
+          padding: 26px 24px;
           display: flex;
           justify-content: space-between;
           align-items: center;
@@ -854,15 +1012,30 @@ function HomeContent() {
           cursor: pointer;
           text-transform: uppercase;
           font-weight: 700;
-          letter-spacing: 0.12em;
-          font-size: 0.95rem;
+          letter-spacing: 0.1em;
+          font-size: 1.15rem;
+        }
+
+        .headerLabel {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+        }
+
+        /* :global — the icon components (IconPain etc.) render their own
+           <svg> in a separate function, so styled-jsx's scoping class never
+           reaches it; the selector has to opt out of scoping to apply. */
+        :global(.sectionIcon) {
+          width: 24px;
+          height: 24px;
+          flex-shrink: 0;
         }
 
         .summary {
-          opacity: 0.72;
-          font-size: 0.87rem;
+          opacity: 0.78;
+          font-size: 1rem;
           text-align: right;
-          max-width: 55%;
+          max-width: 50%;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -877,9 +1050,9 @@ function HomeContent() {
         }
 
         .accordionBody {
-          padding: 18px 20px 22px;
+          padding: 22px 24px 26px;
           display: grid;
-          gap: 14px;
+          gap: 13px;
         }
 
         .accordionBody.scrollable {
@@ -890,7 +1063,7 @@ function HomeContent() {
 
         .grid {
           display: grid;
-          gap: 10px;
+          gap: 12px;
         }
 
         .twoColumns {
@@ -905,10 +1078,10 @@ function HomeContent() {
           border: 1px solid #666;
           background: #000;
           color: #fff;
-          min-height: 52px;
-          padding: 0 14px;
+          min-height: 60px;
+          padding: 0 16px;
           font-weight: 700;
-          font-size: 0.95rem;
+          font-size: 1.05rem;
           text-transform: uppercase;
           letter-spacing: 0.08em;
           display: flex;
@@ -919,8 +1092,8 @@ function HomeContent() {
         }
 
         .option.compact {
-          min-height: 38px;
-          font-size: 0.78rem;
+          min-height: 44px;
+          font-size: 0.88rem;
           letter-spacing: 0.06em;
           padding: 0 10px;
         }
@@ -1016,8 +1189,17 @@ function HomeContent() {
           }
 
           .accordionHeader {
-            padding: 14px 16px;
-            font-size: 0.95rem;
+            padding: 16px 18px;
+            font-size: 1.02rem;
+          }
+
+          .headerLabel {
+            gap: 12px;
+          }
+
+          :global(.sectionIcon) {
+            width: 20px;
+            height: 20px;
           }
 
           .accordionBody {
@@ -1042,12 +1224,6 @@ function HomeContent() {
             text-align: center;
           }
 
-          .formatButtons {
-            gap: 8px;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-          }
-
-          .formatButton,
           .downloadButton,
           .shareButton {
             min-height: 44px;
@@ -1063,6 +1239,20 @@ function HomeContent() {
 
           .shareDownloadRow {
             height: auto;
+          }
+
+          .borne {
+            width: 100%;
+            height: auto;
+            flex: none;
+            padding: 14px;
+            border-radius: 14px;
+          }
+
+          .borneNameplate {
+            font-size: 0.7rem;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
           }
 
           .previewCard {
@@ -1086,12 +1276,13 @@ function HomeContent() {
 
           .validationCard {
             width: 100%;
-            padding: 14px;
+            padding-top: 10px;
+            margin-top: 10px;
           }
 
           .validationScoreRow {
-            font-size: 1.05rem;
-            gap: 10px;
+            font-size: 0.95rem;
+            gap: 6px;
           }
 
           .validationLabel {
@@ -1106,6 +1297,12 @@ function HomeContent() {
             z-index: 10;
             background: #000;
             padding-top: 8px;
+          }
+
+          .formatDialog {
+            margin: auto 0 0;
+            width: 100%;
+            max-width: 100%;
           }
         }
 
