@@ -52,10 +52,14 @@ const FONT_SIZE = {
   sauces: 34,
 } as const;
 
-const FONT_FAMILY = 'AntonPrintServer';
+export const FONT_FAMILY = 'AntonPrintServer';
 let fontRegistered = false;
 
-function ensureFontRegistered() {
+/** Exported so lib/design/share.ts can draw the "monkebab.xyz" footer in the
+ * same Anton face without re-reading/re-registering the font file itself —
+ * asset loading, not text composition, so sharing it doesn't blur the line
+ * this module exists to draw. */
+export function ensureFontRegistered() {
   if (fontRegistered) return;
   // __dirname is unreliable across Next.js's bundlers (Turbopack rewrites it
   // under a virtual root in dev). process.cwd() is the project root in both

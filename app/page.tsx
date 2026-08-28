@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Anton } from 'next/font/google';
 import {
@@ -19,14 +19,11 @@ const viandeOptions: readonly string[] = VIANDE_OPTIONS;
 const cruditesOptions: readonly string[] = CRUDITES_OPTIONS;
 const saucesOptions: readonly string[] = SAUCES_OPTIONS;
 
-const exportSizes = {
-  '1:1': [1080, 1080],
-  '4:5': [1080, 1350],
-  '9:16': [1080, 1920],
-} as const;
-
-type ExportFormat = keyof typeof exportSizes;
-const exportFormats: ExportFormat[] = ['1:1', '4:5', '9:16'];
+// Pixel dimensions for each format live server-side (lib/design/share.ts
+// SHARE_SIZES) — the client only needs the format labels themselves to
+// build the /api/share query and the format-switch buttons.
+const exportFormats = ['1:1', '4:5', '9:16'] as const;
+type ExportFormat = (typeof exportFormats)[number];
 type SectionKey = 'PAIN' | 'VIANDE' | 'CRUDITES' | 'SAUCES';
 const sectionOrder: SectionKey[] = ['PAIN', 'VIANDE', 'CRUDITES', 'SAUCES'];
 
@@ -36,65 +33,6 @@ function formatCrudites(selected: string[]) {
   }
 
   return [selected.join(', ')];
-}
-
-function buildPreviewLines(pain: string, viande: string, crudites: string[], sauces: string[]) {
-  const first = pain ? pain.toUpperCase() : 'SANS PAIN';
-  const second = viande ? viande.toUpperCase() : 'SANS VIANDE';
-  const cruditeLines = formatCrudites(crudites.map((item) => item.toUpperCase()));
-  const fourth = sauces.length ? sauces.map((item) => item.toUpperCase()).join(', ') : 'SANS SAUCE';
-  return [first, second, ...cruditeLines, fourth];
-}
-
-const canvasLetterSpacing: number = 0.75;
-
-function measureTextWidth(ctx: CanvasRenderingContext2D, text: string, letterSpacing: number) {
-  return ctx.measureText(text).width + Math.max(0, text.length - 1) * letterSpacing;
-}
-
-function fillTextWithLetterSpacing(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, letterSpacing: number) {
-  if (letterSpacing === 0 || text.length <= 1) {
-    ctx.fillText(text, x, y);
-    return;
-  }
-
-  const originalAlign = ctx.textAlign;
-  let startX = x;
-  const textWidth = measureTextWidth(ctx, text, letterSpacing);
-
-  if (originalAlign === 'center') {
-    startX = x - textWidth / 2;
-  } else if (originalAlign === 'right' || originalAlign === 'end') {
-    startX = x - textWidth;
-  }
-
-  for (let i = 0; i < text.length; i += 1) {
-    const char = text[i];
-    ctx.fillText(char, startX, y);
-    startX += ctx.measureText(char).width + letterSpacing;
-  }
-}
-
-function splitSauceText(ctx: CanvasRenderingContext2D, sauceText: string, maxWidth: number, letterSpacing: number) {
-  const parts = sauceText.split(', ');
-  const lines: string[] = [];
-  let current = '';
-
-  parts.forEach((part) => {
-    const candidate = current ? `${current}, ${part}` : part;
-    if (current && measureTextWidth(ctx, candidate, letterSpacing) > maxWidth) {
-      lines.push(current);
-      current = part;
-    } else {
-      current = candidate;
-    }
-  });
-
-  if (current) {
-    lines.push(current);
-  }
-
-  return lines.length ? lines : [sauceText];
 }
 
 function calculateValidationScore(pain: string, viande: string, crudites: string[], sauces: string[]) {
@@ -271,121 +209,18 @@ function calculateValidationScore(pain: string, viande: string, crudites: string
   return { score, emoji, label, ratio: score };
 }
 
-function getFontLimits(width: number, height: number) {
-  const ratio = height / width;
-  if (ratio >= 1.75) {
-    return { min: 50, max: 96 };
-  }
-  if (ratio >= 1.2) {
-    return { min: 48, max: 92 };
-  }
-  return { min: 46, max: 86 };
-}
-
-function fitFontSize(
-  ctx: CanvasRenderingContext2D,
-  lines: string[],
-  width: number,
-  height: number,
-  letterSpacing: number,
-  fontWeight: number
-) {
-  const paddingX = width * 0.1;
-  const paddingY = height * 0.12;
-  const maxWidth = width - paddingX * 2;
-  const maxHeight = height - paddingY * 2 - 130;
-  const { min, max } = getFontLimits(width, height);
-
-  const primaryLines = lines.slice(0, 3);
-  const sauceLine = lines[3] || '';
-
-  let primaryFont = max;
-  let primaryLineHeight = Math.round(primaryFont * 1.28);
-  while (primaryFont >= min) {
-    ctx.font = `${fontWeight} ${primaryFont}px Anton, sans-serif`;
-    const primaryHeight = primaryLineHeight * primaryLines.length;
-    const primaryMaxWidth = primaryLines.reduce(
-      (maxW, line) => Math.max(maxW, measureTextWidth(ctx, line, letterSpacing)),
-      0
-    );
-
-    if (primaryMaxWidth <= maxWidth && primaryHeight <= maxHeight * 0.72) {
-      break;
-    }
-
-    primaryFont -= 2;
-    primaryLineHeight = Math.round(primaryFont * 1.28);
-  }
-
-  primaryFont = Math.max(primaryFont, min);
-  primaryLineHeight = Math.round(primaryFont * 1.28);
-
-  const sauceCount = sauceLine ? sauceLine.split(', ').length : 0;
-  const sauceScale = sauceCount <= 1 ? 1 : Math.max(0.7, 1 - 0.06 * (sauceCount - 1));
-  let sauceFont = Math.round(primaryFont * sauceScale);
-  let sauceLineHeight = Math.round(sauceFont * 1.28);
-  let sauceLines = splitSauceText(ctx, sauceLine, maxWidth, letterSpacing);
-
-  while (sauceFont >= min) {
-    ctx.font = `${fontWeight} ${sauceFont}px Anton, sans-serif`;
-    sauceLines = splitSauceText(ctx, sauceLine, maxWidth, letterSpacing);
-    const sauceHeight = sauceLineHeight * sauceLines.length;
-    const totalHeight = primaryLineHeight * primaryLines.length + sauceHeight;
-    const sauceMaxWidth = sauceLines.reduce((maxW, line) => Math.max(maxW, measureTextWidth(ctx, line, letterSpacing)), 0);
-
-    if (sauceMaxWidth <= maxWidth && totalHeight <= maxHeight) {
-      break;
-    }
-
-    sauceFont -= 2;
-    sauceLineHeight = Math.round(sauceFont * 1.28);
-  }
-
-  sauceFont = Math.max(sauceFont, min);
-  sauceLineHeight = Math.round(sauceFont * 1.28);
-  sauceLines = splitSauceText(ctx, sauceLine, maxWidth, letterSpacing);
-
-  const totalHeight = primaryLineHeight * primaryLines.length + sauceLineHeight * sauceLines.length;
-  return { primaryFont, sauceFont, primaryLineHeight, sauceLineHeight, totalHeight, sauceLines };
-}
-
-function renderCanvas(ctx: CanvasRenderingContext2D, lines: string[], width: number, height: number, isPreview = false) {
-  const letterSpacing = isPreview ? 0 : canvasLetterSpacing;
-  const fontWeight = isPreview ? 500 : 600;
-
-  ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, width, height);
-  ctx.strokeStyle = '#666';
-  ctx.lineWidth = 6;
-  ctx.strokeRect(12, 12, width - 24, height - 24);
-
-  ctx.fillStyle = '#fff';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  const { primaryFont, sauceFont, primaryLineHeight, sauceLineHeight, totalHeight, sauceLines } =
-    fitFontSize(ctx, lines, width, height, letterSpacing, fontWeight);
-
-  const startY = Math.max(height * 0.46 - totalHeight / 2, height * 0.14);
-
-  lines.slice(0, 3).forEach((line, index) => {
-    ctx.font = `${fontWeight} ${primaryFont}px Anton, sans-serif`;
-    fillTextWithLetterSpacing(ctx, line, width / 2, startY + index * primaryLineHeight, letterSpacing);
-  });
-
-  sauceLines.forEach((line, index) => {
-    ctx.font = `${fontWeight} ${sauceFont}px Anton, sans-serif`;
-    fillTextWithLetterSpacing(ctx, line, width / 2, startY + primaryLineHeight * 3 + index * sauceLineHeight, letterSpacing);
-  });
-
-  const footerFont = Math.round(primaryFont * 0.45);
-  ctx.font = `bold ${footerFont}px Anton, sans-serif`;
-
-  let footerY = height - 90;
-  if (height === 1350) footerY = height - 110;
-  if (height === 1080) footerY = height - 90;
-  if (height === 1920) footerY = height - 150;
-
-  ctx.fillText('monkebab.xyz', width / 2, footerY);
+/** Debounces a fast-changing value (selection clicks) so the server render
+ * it drives (via /api/share) doesn't fire on every intermediate click —
+ * without this, composing a kebab would trigger a network render per
+ * keystroke-equivalent. Format switches deliberately bypass this (see
+ * shareSrc below) since there's exactly one per click, not a rapid stream. */
+function useDebouncedValue<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(id);
+  }, [value, delayMs]);
+  return debounced;
 }
 
 function downloadBlob(blob: Blob, format: ExportFormat) {
@@ -428,7 +263,6 @@ function getSectionSummary(section: SectionKey, pain: string, viande: string, cr
 }
 
 function HomeContent() {
-  const previewCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const searchParams = useSearchParams();
   // Restores the previous configuration when arriving from /tshirt (via its
   // "← RETOUR" link, or the browser's native Back button — see the
@@ -443,7 +277,6 @@ function HomeContent() {
   const [openSection, setOpenSection] = useState<SectionKey>(initialSelection.pain ? 'VIANDE' : 'PAIN');
   const [format, setFormat] = useState<ExportFormat>('9:16');
 
-  const previewLines = useMemo(() => buildPreviewLines(pain, viande, crudites, sauces), [pain, viande, crudites, sauces]);
   const validation = useMemo(
     () => calculateValidationScore(pain, viande, crudites, sauces),
     [pain, viande, crudites, sauces]
@@ -466,20 +299,56 @@ function HomeContent() {
     router.push(`/tshirt?${params.toString()}`);
   };
 
-  const handleShare = () => {
-    const canvas = previewCanvasRef.current;
-    if (!canvas) return;
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      if (navigator.share) {
-        const file = new File([blob], 'monkebab.png', { type: 'image/png' });
-        navigator.share({ files: [file], title: 'Mon Kebab' }).catch(() => {
-          downloadBlob(blob, format);
-        });
-      } else {
+  // Selection changes are debounced before they reach the server so rapid
+  // clicking doesn't fire a render per click; the format switch is applied
+  // immediately (built from the debounced selection but the live format) —
+  // there's exactly one render per tap on 1:1/4:5/9:16, no flood risk there.
+  const selectionQuery = useMemo(
+    () => buildKebabParams(pain, viande, crudites, sauces).toString(),
+    [pain, viande, crudites, sauces]
+  );
+  const debouncedSelectionQuery = useDebouncedValue(selectionQuery, 220);
+
+  const shareSrc = useMemo(() => {
+    const params = new URLSearchParams(debouncedSelectionQuery);
+    params.set('format', format);
+    return `/api/share?${params.toString()}`;
+  }, [debouncedSelectionQuery, format]);
+
+  // PARTAGER/TÉLÉCHARGER act on the *current* selection, not the debounced
+  // preview one — a click is a deliberate, single action, not part of the
+  // rapid-interaction stream the debounce exists to smooth out.
+  const currentShareSrc = useMemo(() => {
+    const params = buildKebabParams(pain, viande, crudites, sauces);
+    params.set('format', format);
+    return `/api/share?${params.toString()}`;
+  }, [pain, viande, crudites, sauces, format]);
+
+  const fetchShareBlob = async (): Promise<Blob | null> => {
+    const res = await fetch(currentShareSrc);
+    if (!res.ok) return null;
+    return res.blob();
+  };
+
+  const handleShare = async () => {
+    const blob = await fetchShareBlob();
+    if (!blob) return;
+    if (navigator.share) {
+      const file = new File([blob], 'monkebab.png', { type: 'image/png' });
+      try {
+        await navigator.share({ files: [file], title: 'Mon Kebab' });
+      } catch {
         downloadBlob(blob, format);
       }
-    }, 'image/png', 1);
+    } else {
+      downloadBlob(blob, format);
+    }
+  };
+
+  const handleDownload = async () => {
+    const blob = await fetchShareBlob();
+    if (!blob) return;
+    downloadBlob(blob, format);
   };
 
   const previewAspectRatio: Record<ExportFormat, string> = {
@@ -487,19 +356,6 @@ function HomeContent() {
     '4:5': '4 / 5',
     '9:16': '9 / 16',
   };
-
-  useEffect(() => {
-    const canvas = previewCanvasRef.current;
-    if (!canvas) return;
-    document.fonts.ready.then(() => {
-      const [width, height] = exportSizes[format];
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      renderCanvas(ctx, previewLines, width, height, true);
-    });
-  }, [previewLines, format]);
 
   const selectPain = (item: string) => {
     setPain(item);
@@ -653,7 +509,12 @@ function HomeContent() {
 
             <div className="previewCard">
               <div className="previewFrame" style={{ aspectRatio: previewAspectRatio[format] }}>
-                <canvas ref={previewCanvasRef} className="previewCanvas" />
+                {/* Same renderDesign() composition as the print file and
+                    /tshirt — the deterministic engine is the only thing
+                    that ever decides these 4 lines; this just displays its
+                    output, dressed for the selected social format. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={shareSrc} alt="Aperçu de ton design" className="previewImage" />
               </div>
             </div>
 
@@ -670,11 +531,7 @@ function HomeContent() {
                 <button type="button" className="shareButton" onClick={handleShare}>
                   PARTAGER
                 </button>
-                <button type="button" className="downloadButton" onClick={() => {
-                  const canvas = previewCanvasRef.current;
-                  if (!canvas) return;
-                  canvas.toBlob((blob) => { if (blob) downloadBlob(blob, format); }, 'image/png', 1);
-                }}>
+                <button type="button" className="downloadButton" onClick={handleDownload}>
                   TÉLÉCHARGER
                 </button>
               </div>
@@ -860,7 +717,7 @@ function HomeContent() {
           box-sizing: border-box;
         }
 
-        .previewCanvas {
+        .previewImage {
           display: block;
           max-width: 100%;
           max-height: 100%;
@@ -1222,7 +1079,7 @@ function HomeContent() {
             margin: 0 auto;
           }
 
-          .previewCanvas {
+          .previewImage {
             width: 100%;
             height: auto;
           }
