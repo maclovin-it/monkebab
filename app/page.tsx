@@ -3,32 +3,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Anton } from 'next/font/google';
+import { PAIN_OPTIONS, VIANDE_OPTIONS, CRUDITES_OPTIONS, SAUCES_OPTIONS, SAUCES_MAX } from '@/lib/design/options';
 
 const anton = Anton({ subsets: ['latin'], weight: '400', display: 'swap' });
 
-const painOptions = ['Pita', 'Galette', 'Naan'];
-const viandeOptions = ['Kebab', 'Kefta', 'Tenders', 'Poulet Tikka'];
-const cruditesOptions = ['Salade', 'Tomate', 'Oignon'];
-const saucesOptions = [
-  'Blanche',
-  'Harissa',
-  'Algérienne',
-  'Barbecue',
-  'Mayonnaise',
-  'Ketchup',
-  'Samouraï',
-  'Biggy',
-  'Brésilienne',
-  'Andalouse',
-  'Chili Thaï',
-  'Américaine',
-  'Curry',
-  'Fromagère',
-  'Marocaine',
-  'Hannibal',
-  'Dallas',
-  'Poivre',
-];
+const painOptions: readonly string[] = PAIN_OPTIONS;
+const viandeOptions: readonly string[] = VIANDE_OPTIONS;
+const cruditesOptions: readonly string[] = CRUDITES_OPTIONS;
+const saucesOptions: readonly string[] = SAUCES_OPTIONS;
 
 const exportSizes = {
   '1:1': [1080, 1080],
@@ -506,6 +488,17 @@ export default function Home() {
     }
   };
 
+  // Sauces are capped at SAUCES_MAX — the print-file safe zone was audited
+  // for at most 2 sauces. Selecting a 3rd is a no-op rather than silently
+  // accepted and later rejected server-side.
+  const toggleSauce = (item: string) => {
+    if (sauces.includes(item)) {
+      setSauces(sauces.filter((current) => current !== item));
+    } else if (sauces.length < SAUCES_MAX) {
+      setSauces([...sauces, item]);
+    }
+  };
+
   const optionClass = (active: boolean, compact = false) =>
     `option${active ? ' selected' : ''}${compact ? ' compact' : ''}`;
 
@@ -570,16 +563,21 @@ export default function Home() {
 
                         {section === 'SAUCES' && (
                           <div className="grid saucesGrid">
-                            {saucesOptions.map((item) => (
-                              <button
-                                key={item}
-                                type="button"
-                                className={optionClass(sauces.includes(item), true)}
-                                onClick={() => toggleSelection(item, sauces, setSauces)}
-                              >
-                                {item.toUpperCase()}
-                              </button>
-                            ))}
+                            {saucesOptions.map((item) => {
+                              const selected = sauces.includes(item);
+                              const capped = !selected && sauces.length >= SAUCES_MAX;
+                              return (
+                                <button
+                                  key={item}
+                                  type="button"
+                                  className={`${optionClass(selected, true)}${capped ? ' capped' : ''}`}
+                                  disabled={capped}
+                                  onClick={() => toggleSauce(item)}
+                                >
+                                  {item.toUpperCase()}
+                                </button>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -1006,6 +1004,15 @@ export default function Home() {
 
         .option:hover {
           border-color: #999;
+        }
+
+        .option.capped {
+          opacity: 0.35;
+          cursor: not-allowed;
+        }
+
+        .option.capped:hover {
+          border-color: #666;
         }
 
         .selected {
