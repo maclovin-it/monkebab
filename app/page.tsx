@@ -31,13 +31,6 @@ type ExportFormat = (typeof exportFormats)[number];
 type SectionKey = 'PAIN' | 'VIANDE' | 'CRUDITES' | 'SAUCES';
 const sectionOrder: SectionKey[] = ['PAIN', 'VIANDE', 'CRUDITES', 'SAUCES'];
 
-// The live preview inside the borne always renders at this ratio — it's
-// decoupled from the export format so choosing STORY/POST/CARRÉ at share or
-// download time never resizes the borne itself. 4:5 was picked because it
-// fills the bezel's width better than 9:16 (less dead space on the sides)
-// and happens to match the print canvas's own 3000x3750 proportions.
-const PREVIEW_FORMAT: ExportFormat = '4:5';
-
 const formatLabels: Record<ExportFormat, string> = {
   '9:16': 'STORY — 9:16',
   '4:5': 'POST — 4:5',
@@ -286,10 +279,9 @@ function calculateValidationScore(pain: string, viande: string, crudites: string
 }
 
 /** Debounces a fast-changing value (selection clicks) so the server render
- * it drives (via /api/share) doesn't fire on every intermediate click —
+ * it drives (via /api/preview) doesn't fire on every intermediate click —
  * without this, composing a kebab would trigger a network render per
- * keystroke-equivalent. Format switches deliberately bypass this (see
- * shareSrc below) since there's exactly one per click, not a rapid stream. */
+ * keystroke-equivalent. */
 function useDebouncedValue<T>(value: T, delayMs: number): T {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
@@ -378,29 +370,32 @@ function HomeContent() {
 
   // Selection changes are debounced before they reach the server so rapid
   // clicking doesn't fire a render per click. The borne's live preview is
-  // always PREVIEW_FORMAT — it never depends on the export format the user
-  // later picks in the share/download dialog, so composing a kebab never
-  // resizes the borne.
+  // always a fixed 600x750 (see /api/preview + lib/design/preview.ts) — it
+  // never depends on the export format the user later picks in the
+  // share/download dialog, so composing a kebab never resizes the borne.
   const selectionQuery = useMemo(
     () => buildKebabParams(pain, viande, crudites, sauces).toString(),
     [pain, viande, crudites, sauces]
   );
-  // 80ms: short enough to feel immediate (measured server render alone is
-  // ~360ms per new combination — the debounce was never the dominant cost),
-  // long enough to still collapse a genuine rapid-click burst into a single
-  // request instead of one per click. <img src> swapping is itself race-safe
-  // (the browser never commits a stale in-flight load once src has moved on
-  // to a newer value), so this doesn't risk showing an outdated preview.
+  // 80ms: short enough to feel immediate, long enough to still collapse a
+  // genuine rapid-click burst into a single request instead of one per
+  // click. <img src> swapping is itself race-safe (the browser never
+  // commits a stale in-flight load once src has moved on to a newer
+  // value), so this doesn't risk showing an outdated preview.
   const debouncedSelectionQuery = useDebouncedValue(selectionQuery, 80);
 
-  const shareSrc = useMemo(() => {
-    const params = new URLSearchParams(debouncedSelectionQuery);
-    params.set('format', PREVIEW_FORMAT);
-    return `/api/share?${params.toString()}`;
-  }, [debouncedSelectionQuery]);
+  // /api/preview — not /api/share — for the live preview: same renderDesign()
+  // engine, but composed directly at preview size (never generates the
+  // 3000x3750 print canvas first). See lib/design/preview.ts for why —
+  // /api/share stays exactly as-is for PARTAGER/TÉLÉCHARGER's real export
+  // resolutions, untouched by this.
+  const previewApiSrc = useMemo(
+    () => `/api/preview?${debouncedSelectionQuery}`,
+    [debouncedSelectionQuery]
+  );
 
-  // Same debounced selection shareSrc is built from, decoded back into a
-  // KebabSelection for cache-keying — reuses sanitizeSelectionFromParams
+  // Same debounced selection previewApiSrc is built from, decoded back into
+  // a KebabSelection for cache-keying — reuses sanitizeSelectionFromParams
   // (already imported) rather than re-deriving pain/viande/crudites/sauces
   // by hand.
   const debouncedSelection = useMemo(
@@ -408,11 +403,14 @@ function HomeContent() {
     [debouncedSelectionQuery]
   );
 
-  // Never binds <img src> directly to shareSrc — that would clear the
+  // Never binds <img src> directly to previewApiSrc — that would clear the
   // borne's screen the instant the selection changes, before the new image
   // has loaded. This holds the previous frame until the next one is ready
-  // (from the in-memory cache or a real fetch), then swaps once.
-  const previewSrc = usePreviewImage(shareSrc, debouncedSelection, PREVIEW_FORMAT);
+  // (from the in-memory cache or a real fetch), then swaps once. 'preview'
+  // variant — a distinct cache namespace from /tshirt's 'design' preloads
+  // (see handleTshirt below), since this is a different endpoint producing
+  // a different image.
+  const previewSrc = usePreviewImage(previewApiSrc, debouncedSelection, 'preview');
 
   // Deliberately its own, longer debounce than the 80ms live-preview one
   // above: firing a real render per *intermediate* settled state while the
@@ -647,11 +645,13 @@ function HomeContent() {
                   {/* Same renderDesign() composition as the print file and
                       /tshirt — the deterministic engine is the only thing
                       that ever decides these 4 lines; this just displays
-                      its output. Always rendered at PREVIEW_FORMAT — the
-                      borne's shape never changes with the export format
-                      picked below. previewSrc (not shareSrc directly) so
-                      the screen holds its last frame instead of flashing
-                      blank while the next selection's image loads. */}
+                      its output, composed directly at preview size via
+                      /api/preview (never via the 3000x3750 print canvas).
+                      Always a fixed 600x750 — the borne's shape never
+                      changes with the export format picked below.
+                      previewSrc (not previewApiSrc directly) so the screen
+                      holds its last frame instead of flashing blank while
+                      the next selection's image loads. */}
                   {previewSrc && (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={previewSrc} alt="Aperçu de ton design" className="previewImage" />
