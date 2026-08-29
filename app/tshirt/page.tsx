@@ -291,20 +291,15 @@ function TshirtContent() {
         }
 
         .chestDesign {
-          /* Restored to the pre-redesign values — the container
-             (.tshirtFrame) grew in this redesign, but .chestDesign is
-             already percentage-based against it, so it scales up with the
-             frame automatically and needs no change of its own. A prior
-             commit on this branch changed these values (top 30->65%,
-             width 45->33%, center-anchored transform) based on a
-             torso-geometry analysis; that was a regression against the
-             size/position that was already correct before the redesign,
-             not a real bug — reverted. */
+          /* Iterating from the 35%/36% pass per visual feedback ("plus bas,
+             et plus gros") — center-anchored (matches renderDesign()
+             centering text within its own canvas, lib/design/render.ts) so
+             this holds regardless of order length. */
           position: absolute;
-          top: 30%;
+          top: 44%;
           left: 50%;
-          transform: translateX(-50%);
-          width: 45%;
+          transform: translate(-50%, -50%);
+          width: 44%;
           height: auto;
           display: block;
         }
