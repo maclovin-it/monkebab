@@ -291,25 +291,20 @@ function TshirtContent() {
         }
 
         .chestDesign {
-          /* Anchored by its CENTER, not its top edge — renderDesign() always
-             vertically centers the printed text within the 3000x3750 canvas
-             (lib/design/render.ts, y = (canvasH - totalH) / 2) regardless of
-             how many lines the order has. Anchoring this overlay by center
-             on both axes matches that, so the visible text lands at a fixed
-             point on the shirt for every order instead of drifting down
-             as the (order-independent) box height changes.
-             top/width measured against tshirt-base.png's own torso panel
-             (underarm ~40%, hem ~99% of image height, from the source PNG's
-             alpha channel) — the exact Printful print-area-to-mockup offset
-             isn't in this project (checkout's "position" block in
-             app/api/webhook/route.ts is relative to Printful's own print
-             area, not to this illustration), so this is a reasoned fit to
-             the actual torso geometry, not a literal Printful coordinate. */
+          /* Restored to the pre-redesign values — the container
+             (.tshirtFrame) grew in this redesign, but .chestDesign is
+             already percentage-based against it, so it scales up with the
+             frame automatically and needs no change of its own. A prior
+             commit on this branch changed these values (top 30->65%,
+             width 45->33%, center-anchored transform) based on a
+             torso-geometry analysis; that was a regression against the
+             size/position that was already correct before the redesign,
+             not a real bug — reverted. */
           position: absolute;
-          top: 65%;
+          top: 30%;
           left: 50%;
-          transform: translate(-50%, -50%);
-          width: 33%;
+          transform: translateX(-50%);
+          width: 45%;
           height: auto;
           display: block;
         }
