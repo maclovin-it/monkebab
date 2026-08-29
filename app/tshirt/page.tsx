@@ -291,11 +291,25 @@ function TshirtContent() {
         }
 
         .chestDesign {
+          /* Anchored by its CENTER, not its top edge — renderDesign() always
+             vertically centers the printed text within the 3000x3750 canvas
+             (lib/design/render.ts, y = (canvasH - totalH) / 2) regardless of
+             how many lines the order has. Anchoring this overlay by center
+             on both axes matches that, so the visible text lands at a fixed
+             point on the shirt for every order instead of drifting down
+             as the (order-independent) box height changes.
+             top/width measured against tshirt-base.png's own torso panel
+             (underarm ~40%, hem ~99% of image height, from the source PNG's
+             alpha channel) — the exact Printful print-area-to-mockup offset
+             isn't in this project (checkout's "position" block in
+             app/api/webhook/route.ts is relative to Printful's own print
+             area, not to this illustration), so this is a reasoned fit to
+             the actual torso geometry, not a literal Printful coordinate. */
           position: absolute;
-          top: 30%;
+          top: 65%;
           left: 50%;
-          transform: translateX(-50%);
-          width: 45%;
+          transform: translate(-50%, -50%);
+          width: 33%;
           height: auto;
           display: block;
         }
@@ -581,20 +595,30 @@ function TshirtContent() {
             padding: 14px 12px 88px;
           }
 
+          /* True viewport-relative centering: the title is taken out of
+             flow and centered on .topBar itself, independent of how wide
+             "← RETOUR" is — no flanking spacer needs to match its width. */
           .topBar {
-            justify-content: flex-start;
-            gap: 12px;
+            position: relative;
+            min-height: 40px;
             margin-bottom: 12px;
           }
 
           .backLink {
+            position: relative;
+            z-index: 1;
             min-width: 0;
           }
 
           h1 {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             flex: none;
-            text-align: left;
-            font-size: clamp(1.3rem, 6vw, 1.8rem);
+            margin: 0;
+            white-space: nowrap;
+            font-size: clamp(1.05rem, 5.5vw, 1.5rem);
           }
 
           .spacer {
