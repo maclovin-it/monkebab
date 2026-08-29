@@ -12,6 +12,7 @@ import {
   sanitizeSelectionFromParams,
 } from '@/lib/design/options';
 import { usePreviewImage } from '@/lib/design/use-preview-image';
+import { loadPreview } from '@/lib/design/preview-cache';
 
 const anton = Anton({ subsets: ['latin'], weight: '400', display: 'swap' });
 
@@ -413,6 +414,50 @@ function HomeContent() {
   // (from the in-memory cache or a real fetch), then swaps once.
   const previewSrc = usePreviewImage(shareSrc, debouncedSelection, PREVIEW_FORMAT);
 
+  // Deliberately its own, longer debounce than the 80ms live-preview one
+  // above: firing a real render per *intermediate* settled state while the
+  // user is still actively composing (every ~80ms pause between clicks)
+  // would render several combinations that never actually get shown on
+  // /tshirt — real server cost for nothing. 700ms of quiet is a much
+  // better proxy for "probably done choosing for now."
+  const preloadSelectionQuery = useDebouncedValue(selectionQuery, 700);
+  const preloadSelection = useMemo(
+    () => sanitizeSelectionFromParams(new URLSearchParams(preloadSelectionQuery)),
+    [preloadSelectionQuery]
+  );
+
+  // Preload /tshirt's design image before the user ever gets there — this
+  // is the single biggest lever measured in the perf audit (the CTA click
+  // was ~95% one /api/design fetch, ~1.3s cold in production). Feeds the
+  // same cache usePreviewImage reads on /tshirt's own mount, via the
+  // 'design' variant key, so a warmed combination shows instantly there
+  // instead of a blank chest. loadPreview() already dedupes concurrent
+  // calls for the same selection, so firing this from two triggers below
+  // is safe — it's never more than one real fetch per combination.
+  useEffect(() => {
+    const designParams = buildKebabParams(
+      preloadSelection.pain,
+      preloadSelection.viande,
+      preloadSelection.crudites,
+      preloadSelection.sauces
+    );
+    loadPreview(`/api/design?${designParams.toString()}`, preloadSelection, 'design').catch(() => {
+      // Best-effort warm-up — /tshirt will just fetch it itself if this
+      // failed, same as before this existed.
+    });
+  }, [preloadSelection]);
+
+  // Safety net for users who click the CTA fast, right after their last
+  // edit, before the debounce above even fires: warm the *current*
+  // (non-debounced) selection the moment intent is likely — hover, focus,
+  // or touchstart (fires before click on mobile) — not on click itself,
+  // which would be too late to help.
+  const preloadCurrentDesign = () => {
+    const selection = { pain, viande, crudites, sauces };
+    const designParams = buildKebabParams(pain, viande, crudites, sauces);
+    loadPreview(`/api/design?${designParams.toString()}`, selection, 'design').catch(() => {});
+  };
+
   const fetchShareBlob = async (fmt: ExportFormat): Promise<Blob | null> => {
     // Built from the *current* selection, not the debounced preview one —
     // a click is a deliberate, single action, not part of the
@@ -636,7 +681,14 @@ function HomeContent() {
                   TÉLÉCHARGER
                 </button>
               </div>
-              <button type="button" className="tshirtButton" onClick={handleTshirt}>
+              <button
+                type="button"
+                className="tshirtButton"
+                onClick={handleTshirt}
+                onMouseEnter={preloadCurrentDesign}
+                onFocus={preloadCurrentDesign}
+                onTouchStart={preloadCurrentDesign}
+              >
                 OBTENIR MON T-SHIRT 👕
               </button>
             </div>
