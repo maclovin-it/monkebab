@@ -520,10 +520,16 @@ function TshirtContent() {
           cursor: pointer;
           font-family: inherit;
           padding: 0;
+          outline: none;
+          box-shadow: none;
         }
 
-        .sizeGuideClose:hover {
+        .sizeGuideClose:hover,
+        .sizeGuideClose:focus,
+        .sizeGuideClose:focus-visible {
           opacity: 1;
+          outline: none;
+          box-shadow: none;
         }
 
         .sizeGuideTable {
