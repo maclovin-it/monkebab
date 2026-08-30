@@ -10,6 +10,15 @@ const anton = Anton({ subsets: ['latin'], weight: '400', display: 'swap' });
 
 const SIZES = ['S', 'M', 'L', 'XL', 'XXL'];
 
+// Gildan Heavy Cotton 5000 spec sheet, in cm.
+const SIZE_MEASUREMENTS: Record<string, { chest: number; length: number }> = {
+  S: { chest: 91, length: 71 },
+  M: { chest: 102, length: 74 },
+  L: { chest: 112, length: 76 },
+  XL: { chest: 122, length: 79 },
+  XXL: { chest: 132, length: 81 },
+};
+
 function TshirtContent() {
   const searchParams = useSearchParams();
 
@@ -173,11 +182,6 @@ function TshirtContent() {
               ×
             </button>
           </div>
-          {/* Measurements intentionally left blank — no verified Printful
-              (Gildan 5000) size-chart data exists in this project yet.
-              Structure is ready; fill in cm values once sourced from
-              Printful's own spec sheet for this exact variant. */}
-          <p className="sizeGuidePending">Mesures détaillées à venir.</p>
           <table className="sizeGuideTable">
             <thead>
               <tr>
@@ -189,19 +193,20 @@ function TshirtContent() {
             </thead>
             <tbody>
               <tr>
-                <td>Largeur (cm)</td>
+                <td>Tour de poitrine</td>
                 {SIZES.map((size) => (
-                  <td key={size}>—</td>
+                  <td key={size}>{SIZE_MEASUREMENTS[size].chest}</td>
                 ))}
               </tr>
               <tr>
-                <td>Longueur (cm)</td>
+                <td>Hauteur</td>
                 {SIZES.map((size) => (
-                  <td key={size}>—</td>
+                  <td key={size}>{SIZE_MEASUREMENTS[size].length}</td>
                 ))}
               </tr>
             </tbody>
           </table>
+          <p className="sizeGuideNote">Mesures en cm. Tolérance de fabrication : ± 2 cm.</p>
         </div>
       </dialog>
 
@@ -521,34 +526,41 @@ function TshirtContent() {
           opacity: 1;
         }
 
-        .sizeGuidePending {
-          margin: 0;
-          font-size: 0.76rem;
-          letter-spacing: 0.02em;
-          opacity: 0.55;
-          line-height: 1.5;
-        }
-
         .sizeGuideTable {
           width: 100%;
           border-collapse: collapse;
-          font-size: 0.76rem;
+          font-size: 0.8rem;
+          table-layout: fixed;
         }
 
         .sizeGuideTable th,
         .sizeGuideTable td {
           border: 1px solid #333;
-          padding: 8px 6px;
+          padding: 10px 4px;
           text-align: center;
+        }
+
+        .sizeGuideTable th:first-child,
+        .sizeGuideTable td:first-child {
+          text-align: left;
+          padding-left: 8px;
         }
 
         .sizeGuideTable th {
           opacity: 0.7;
-          letter-spacing: 0.04em;
+          letter-spacing: 0.03em;
         }
 
         .sizeGuideTable td {
-          opacity: 0.85;
+          opacity: 0.9;
+        }
+
+        .sizeGuideNote {
+          margin: 0;
+          font-size: 0.72rem;
+          letter-spacing: 0.02em;
+          opacity: 0.5;
+          line-height: 1.5;
         }
 
         /* ── Desktop: side-by-side, mockup grows, panel stays a compact
