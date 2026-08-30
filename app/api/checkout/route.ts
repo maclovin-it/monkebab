@@ -89,7 +89,12 @@ export async function POST(request: Request) {
         },
       ],
       shipping_address_collection: {
-        allowed_countries: ["FR"],
+        // BE/LU added after a Printful cost-estimate audit (real API costs,
+        // not assumed) confirmed their landed margin at 29,99€ stays within
+        // ~2pp of France (53.8% / 55.3% vs 54.1%) — well above the 45%
+        // acceptance threshold. Price, "livraison incluse", and everything
+        // else about the checkout is unchanged.
+        allowed_countries: ["FR", "BE", "LU"],
       },
       custom_text: {
         shipping_address: {
