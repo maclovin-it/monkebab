@@ -1,4 +1,5 @@
 import { getSql } from '@/lib/stats/db';
+import { sendFulfillmentFailedAlert } from '@/lib/emails/fulfillment-alert';
 
 // Durable state for the Stripe -> Printful pipeline (db/migrations/0002).
 // Separate from lib/stats/db.ts's `orders` table (stats only, no PII) —
@@ -87,12 +88,29 @@ export async function markConfirmed(stripeSessionId: string): Promise<void> {
   `;
 }
 
-export async function markFailed(stripeSessionId: string): Promise<void> {
+/** Marks the fulfillment failed and fires the internal alert exactly once
+ * from this single call site — every place that can fail (missing variant,
+ * createOrder, confirmOrder — see app/api/webhook/route.ts) just calls this
+ * with a bit of context instead of separately wiring up its own alert. */
+export async function markFailed(
+  stripeSessionId: string,
+  context?: { step: string; errorMessage: string }
+): Promise<void> {
   const sql = getSql();
-  await sql`
+  const rows = (await sql`
     UPDATE fulfillments SET status = 'failed', updated_at = now()
     WHERE stripe_session_id = ${stripeSessionId}
-  `;
+    RETURNING *
+  `) as FulfillmentRow[];
+
+  const fulfillment = rows[0] ? mapRow(rows[0]) : null;
+
+  await sendFulfillmentFailedAlert({
+    stripeSessionId,
+    printfulOrderId: fulfillment?.printfulOrderId ?? null,
+    step: context?.step,
+    errorMessage: context?.errorMessage,
+  });
 }
 
 /** Best-effort, called from the Printful shipment webhook — never throws

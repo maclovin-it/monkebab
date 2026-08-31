@@ -99,7 +99,10 @@ async function runFulfillment(session: Stripe.Checkout.Session) {
   const variantId = size ? VARIANT_IDS[size] : undefined;
   if (!variantId) {
     console.error("[printful] unknown or missing size, cannot fulfill:", size, session.id);
-    await markFailed(session.id);
+    await markFailed(session.id, {
+      step: "variant_lookup",
+      errorMessage: `Unknown or missing size: ${size ?? "(none)"}`,
+    });
     return;
   }
 
@@ -163,7 +166,10 @@ async function runFulfillment(session: Stripe.Checkout.Session) {
 
       if (createStatus !== 200 || !printfulData?.result?.id) {
         console.error("[printful] order creation failed", { status: createStatus, body: printfulData, sessionId: session.id });
-        await markFailed(session.id);
+        await markFailed(session.id, {
+          step: "printful_create",
+          errorMessage: `createOrder failed (HTTP ${createStatus}): ${JSON.stringify(printfulData?.error ?? printfulData)}`,
+        });
         throw new Error("Printful order creation failed");
       }
 
@@ -198,7 +204,10 @@ async function runFulfillment(session: Stripe.Checkout.Session) {
       sessionId: session.id,
       printfulOrderId,
     });
-    await markFailed(session.id);
+    await markFailed(session.id, {
+      step: "printful_confirm",
+      errorMessage: `confirmOrder failed (HTTP ${confirmStatus}): ${JSON.stringify(confirmBody?.error ?? confirmBody)}`,
+    });
     throw new Error("Printful order confirmation failed");
   }
 
