@@ -1,5 +1,6 @@
 import { getOrder, type PrintfulShipment } from "@/lib/printful";
 import { getResend } from "@/lib/resend";
+import { markShippedBestEffort } from "@/lib/fulfillment/db";
 import {
   ORDER_SHIPPED_SUBJECT,
   renderOrderShippedHtml,
@@ -76,6 +77,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ sec
   }
 
   if (shipmentId) processedShipments.add(shipmentId);
+
+  // Best-effort, purely informational for support lookups — never blocks or
+  // fails the tracking email below.
+  await markShippedBestEffort(String(orderId));
 
   try {
     const emailData = {

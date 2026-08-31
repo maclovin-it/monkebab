@@ -36,6 +36,7 @@ export interface PrintfulRecipient {
   name: string;
   email?: string;
   address1: string;
+  address2?: string;
   city: string;
   state_code: string;
   country_code: string;
@@ -57,6 +58,10 @@ export interface PrintfulOrderItem {
 
 export interface CreateOrderParams {
   confirm: boolean;
+  /** Set to the Stripe session id — lets a lost response after a successful
+   * create be recovered via getOrderByExternalId() instead of creating a
+   * second order on retry. */
+  external_id?: string;
   recipient: PrintfulRecipient;
   items: PrintfulOrderItem[];
 }
@@ -97,4 +102,12 @@ export function confirmOrder(orderId: number | string) {
 /** GET /orders/{id} — canonical order data, used to verify webhook events. */
 export function getOrder(orderId: number | string) {
   return request<PrintfulOrder>(`/orders/${orderId}`);
+}
+
+/** GET /orders/@{external_id} — looks an order up by the external_id we set
+ * at creation time (the Stripe session id). Used to recover from a create
+ * that succeeded at Printful but whose response we never got to persist —
+ * a 404 here means no such order exists yet, safe to create one. */
+export function getOrderByExternalId(externalId: string) {
+  return request<PrintfulOrder>(`/orders/@${encodeURIComponent(externalId)}`);
 }
