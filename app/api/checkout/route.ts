@@ -4,7 +4,15 @@ import { renderDesign } from "@/lib/design/render";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
-  const { size = '', bread = '', meat = '', vegetables = [], sauces = [], gaClientId = '' } = body as {
+  const {
+    size = '',
+    bread = '',
+    meat = '',
+    vegetables = [],
+    sauces = [],
+    gaClientId = '',
+    analyticsConsent = '',
+  } = body as {
     size?: string;
     bread?: string;
     meat?: string;
@@ -15,7 +23,20 @@ export async function POST(request: Request) {
      * webhook on confirmed payment can attribute back to this visitor. Not
      * personal data — an opaque analytics identifier, not a Stripe id. */
     gaClientId?: string;
+    /** The visitor's analytics consent choice at checkout time
+     * (lib/analytics/consent.ts) — 'granted', 'denied', or null/absent for
+     * "no choice made". Carried through to Stripe metadata so the webhook
+     * can gate the purchase event on it; only the literal string "granted"
+     * ever authorizes sending purchase to GA4. */
+    analyticsConsent?: 'granted' | 'denied' | null;
   };
+
+  // Stripe metadata values must be strings — normalize explicitly rather
+  // than relying on destructuring defaults, which don't apply when the
+  // client sends a literal `null` (as getGaClientId()/readStoredConsent()
+  // both can) rather than omitting the field entirely.
+  const gaClientIdStr = gaClientId || '';
+  const analyticsConsentStr = analyticsConsent || '';
 
   // The print file is generated server-side from these fields, never
   // accepted from the client — this is also what guarantees the preview the
@@ -69,7 +90,8 @@ export async function POST(request: Request) {
     vegetables: vegetablesStr,
     sauces: saucesStr,
     printFileUrl,
-    gaClientId,
+    gaClientId: gaClientIdStr,
+    analyticsConsent: analyticsConsentStr,
   };
 
   console.log('[checkout] received body:', meta);

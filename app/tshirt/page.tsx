@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Anton } from 'next/font/google';
 import { usePreviewImage } from '@/lib/design/use-preview-image';
 import { trackEvent, getGaClientId } from '@/lib/analytics/ga';
+import { readStoredConsent } from '@/lib/analytics/consent';
 
 const anton = Anton({ subsets: ['latin'], weight: '400', display: 'swap' });
 
@@ -88,6 +89,14 @@ function TshirtContent() {
     // blocked, consent not given) — checkout still proceeds normally either way.
     const gaClientId = await getGaClientId();
 
+    // The analytics consent choice itself, read fresh from storage right
+    // now (not cached in component state) — same transport pattern as
+    // gaClientId: threaded through Stripe metadata so the webhook can gate
+    // the purchase event on it. null (no choice made) is sent as-is; the
+    // webhook treats anything other than the literal string "granted" as
+    // "do not send purchase to GA4".
+    const analyticsConsent = readStoredConsent();
+
     try {
       const res = await fetch('/api/checkout', {
         method: 'POST',
@@ -99,6 +108,7 @@ function TshirtContent() {
           vegetables: crudites,
           sauces,
           gaClientId,
+          analyticsConsent,
         }),
       });
       const data = await res.json();

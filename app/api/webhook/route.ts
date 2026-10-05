@@ -65,17 +65,38 @@ async function recordSaleBestEffort(session: Stripe.Checkout.Session): Promise<b
  * first known, not inside runFulfillment(), and its own idempotence rides
  * entirely on recordSaleBestEffort()'s return value (itself backed by the
  * `orders` table's existing UNIQUE(stripe_session_id) constraint) rather
- * than a second, separate dedup mechanism. Best-effort itself — see
- * sendPurchaseEvent()'s own contract, never throws. */
+ * than a second, separate dedup mechanism. The sale is always recorded
+ * regardless of analytics consent — only the GA4 purchase event itself is
+ * gated on it. Best-effort itself — see sendPurchaseEvent()'s own
+ * contract, never throws. */
 async function recordSaleAndFirePurchase(session: Stripe.Checkout.Session) {
   const isNewSale = await recordSaleBestEffort(session);
   if (!isNewSale) return;
 
-  const { gaClientId, size } = session.metadata ?? {};
+  const { gaClientId, size, analyticsConsent } = session.metadata ?? {};
+
+  // Trust only an explicit "granted" — missing metadata, "denied", or any
+  // unrecognized value all mean no purchase event. The checkout flow always
+  // sends this field (app/api/checkout/route.ts), so anything else here
+  // means the visitor had not accepted analytics when they checked out.
+  if (analyticsConsent !== "granted") {
+    console.log("[ga4] analytics consent not granted, skipping purchase event:", session.id, analyticsConsent || "(none)");
+    return;
+  }
+
+  // No fabricated amount — a "purchase" without a real, Stripe-confirmed
+  // value would misreport revenue in GA4. This should not happen in
+  // practice (Checkout Sessions always carry amount_total once paid), but
+  // if it ever does, skip the event entirely rather than guess.
+  if (typeof session.amount_total !== "number") {
+    console.error("[ga4] session.amount_total missing, cannot report an accurate purchase value — skipping:", session.id);
+    return;
+  }
+
   await sendPurchaseEvent({
     clientId: gaClientId,
     transactionId: session.id,
-    value: typeof session.amount_total === "number" ? session.amount_total / 100 : 29.99,
+    value: session.amount_total / 100,
     currency: (session.currency ?? "eur").toUpperCase(),
     size,
   });
