@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Anton } from 'next/font/google';
 import { usePreviewImage } from '@/lib/design/use-preview-image';
+import { trackEvent, getGaClientId } from '@/lib/analytics/ga';
 
 const anton = Anton({ subsets: ['latin'], weight: '400', display: 'swap' });
 
@@ -62,6 +63,11 @@ function TshirtContent() {
   // this renders instantly instead of showing a blank chest for ~1.3s.
   const previewSrc = usePreviewImage(designSrc, { pain, viande, crudites, sauces }, 'design');
 
+  const selectSize = (size: string) => {
+    setSelectedSize(size);
+    trackEvent('size_selected', { size });
+  };
+
   const handleCommander = async () => {
     setError('');
     if (!selectedSize) {
@@ -69,6 +75,19 @@ function TshirtContent() {
       return;
     }
     setLoading(true);
+
+    // checkout_started fires only once we're genuinely proceeding (past the
+    // missing-size guard above), right before the real checkout call.
+    trackEvent('checkout_started', { size: selectedSize, value: 29.99, currency: 'EUR' });
+
+    // GA4's own client_id, threaded through Stripe metadata so the
+    // server-side "purchase" event (fired from the webhook once payment is
+    // actually confirmed — see lib/analytics/measurement-protocol.ts) can
+    // attribute back to this same visitor's funnel instead of landing
+    // disconnected. null when gtag never loaded (no measurement id set,
+    // blocked, consent not given) — checkout still proceeds normally either way.
+    const gaClientId = await getGaClientId();
+
     try {
       const res = await fetch('/api/checkout', {
         method: 'POST',
@@ -79,6 +98,7 @@ function TshirtContent() {
           meat: viande,
           vegetables: crudites,
           sauces,
+          gaClientId,
         }),
       });
       const data = await res.json();
@@ -144,7 +164,7 @@ function TshirtContent() {
                   key={size}
                   type="button"
                   className={`sizeBtn${selectedSize === size ? ' active' : ''}`}
-                  onClick={() => setSelectedSize(size)}
+                  onClick={() => selectSize(size)}
                 >
                   {size}
                 </button>

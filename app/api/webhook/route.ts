@@ -14,6 +14,7 @@ import {
   renderOrderConfirmationHtml,
   renderOrderConfirmationText,
 } from "@/lib/emails/order-confirmation";
+import { sendPurchaseEvent } from "@/lib/analytics/measurement-protocol";
 
 const ORDER_CONFIRMATION_FROM = "Mon Kebab <commande@monkebab.xyz>";
 
@@ -41,17 +42,43 @@ const VARIANT_IDS: Record<string, number> = {
 // database level (UNIQUE stripe_session_id + ON CONFLICT DO NOTHING), so
 // it's safe to call for both checkout.session.completed and
 // checkout.session.async_payment_succeeded without risking a double count.
-async function recordSaleBestEffort(session: Stripe.Checkout.Session) {
-  if (session.payment_status !== "paid") return;
+// Returns whether this call was the one that actually recorded the sale
+// (see recordSale()'s own doc — the INSERT's RETURNING is empty on a
+// duplicate/conflict), used below as the sole idempotence signal for the
+// GA4 purchase event.
+async function recordSaleBestEffort(session: Stripe.Checkout.Session): Promise<boolean> {
+  if (session.payment_status !== "paid") return false;
 
   const { bread, meat, vegetables, sauces } = session.metadata ?? {};
 
   try {
-    await recordSale({ stripeSessionId: session.id, bread, meat, vegetables, sauces });
+    return await recordSale({ stripeSessionId: session.id, bread, meat, vegetables, sauces });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown stats error";
     console.error("[stats] record sale failed", message);
+    return false;
   }
+}
+
+/** "Payment confirmed" = a sale happened, independent of whatever Printful
+ * fulfillment does afterward — so this is called where payment success is
+ * first known, not inside runFulfillment(), and its own idempotence rides
+ * entirely on recordSaleBestEffort()'s return value (itself backed by the
+ * `orders` table's existing UNIQUE(stripe_session_id) constraint) rather
+ * than a second, separate dedup mechanism. Best-effort itself — see
+ * sendPurchaseEvent()'s own contract, never throws. */
+async function recordSaleAndFirePurchase(session: Stripe.Checkout.Session) {
+  const isNewSale = await recordSaleBestEffort(session);
+  if (!isNewSale) return;
+
+  const { gaClientId, size } = session.metadata ?? {};
+  await sendPurchaseEvent({
+    clientId: gaClientId,
+    transactionId: session.id,
+    value: typeof session.amount_total === "number" ? session.amount_total / 100 : 29.99,
+    currency: (session.currency ?? "eur").toUpperCase(),
+    size,
+  });
 }
 
 function formatAmount(session: Stripe.Checkout.Session): string {
@@ -213,6 +240,14 @@ async function runFulfillment(session: Stripe.Checkout.Session) {
 
   await markConfirmed(session.id);
 
+  // Note: the GA4 purchase event is NOT fired here. "Paid" and "fulfilled"
+  // are deliberately different facts — purchase fires as soon as payment is
+  // confirmed (see recordSaleAndFirePurchase(), called from POST() below,
+  // before runFulfillment() is even invoked), independent of whether
+  // Printful order creation/confirmation below succeeds. A Printful failure
+  // still shows up (status 'failed' + the internal alert), just not as a
+  // missing GA4 purchase — those are two separate concerns now.
+
   // Step 3 — confirmation email. Only reachable after a verified confirm
   // success above; deliberately best-effort itself (a Resend failure must
   // never turn into a 5xx that makes Stripe retry an already-confirmed order).
@@ -276,7 +311,10 @@ export async function POST(request: Request) {
 
     console.log("[webhook] checkout.session.completed", { sessionId: session.id });
 
-    await recordSaleBestEffort(session);
+    // Payment confirmed = a sale happened, independent of fulfillment —
+    // recorded (stats) and measured (GA4 purchase) before Printful is ever
+    // involved, so a downstream Printful failure never affects either.
+    await recordSaleAndFirePurchase(session);
 
     try {
       await runFulfillment(session);
@@ -290,10 +328,11 @@ export async function POST(request: Request) {
     // "paid" yet at checkout.session.completed — this event confirms success
     // later. Order fulfillment (Printful/email) for delayed payment methods
     // is out of scope here; this only ensures the sale is still counted in
-    // stats. stripe_session_id dedup makes this safe even if a session
-    // somehow triggers both event types.
+    // stats and measured in GA4. stripe_session_id dedup (via the `orders`
+    // table's UNIQUE constraint, see recordSale()) makes this safe even if
+    // a session somehow triggers both event types.
     const session = event.data.object as Stripe.Checkout.Session;
-    await recordSaleBestEffort(session);
+    await recordSaleAndFirePurchase(session);
   }
 
   return Response.json({ received: true });

@@ -13,6 +13,7 @@ import {
 } from '@/lib/design/options';
 import { usePreviewImage } from '@/lib/design/use-preview-image';
 import { loadPreview } from '@/lib/design/preview-cache';
+import { trackEvent } from '@/lib/analytics/ga';
 
 const anton = Anton({ subsets: ['latin'], weight: '400', display: 'swap' });
 
@@ -351,6 +352,29 @@ function HomeContent() {
     [pain, viande, crudites, sauces]
   );
 
+  // kebab_started: the first real configurator interaction this page
+  // lifetime — fired at most once regardless of which category (pain,
+  // viande, crudités or sauces) the visitor touches first.
+  const kebabStartedFired = useRef(false);
+  const markKebabStarted = () => {
+    if (kebabStartedFired.current) return;
+    kebabStartedFired.current = true;
+    trackEvent('kebab_started');
+  };
+
+  // kebab_completed: pain + viande are the two choices that define "a
+  // kebab" — crudités/sauces stay optional by design (render.ts/options.ts
+  // both treat an empty selection as a valid "SANS ..." state), so this
+  // fires once both of the two required choices are made, not on every
+  // selection change afterward.
+  const kebabCompletedFired = useRef(false);
+  useEffect(() => {
+    if (pain && viande && !kebabCompletedFired.current) {
+      kebabCompletedFired.current = true;
+      trackEvent('kebab_completed');
+    }
+  }, [pain, viande]);
+
   const router = useRouter();
 
   // Keeps "/" itself in sync with the current selection (replace, not push
@@ -500,16 +524,19 @@ function HomeContent() {
   };
 
   const selectPain = (item: string) => {
+    markKebabStarted();
     setPain(item);
     setOpenSection('VIANDE');
   };
 
   const selectViande = (item: string) => {
+    markKebabStarted();
     setViande(item);
     setOpenSection('CRUDITES');
   };
 
   const toggleSelection = (item: string, list: string[], setList: (value: string[]) => void) => {
+    markKebabStarted();
     if (list.includes(item)) {
       setList(list.filter((current) => current !== item));
     } else {
@@ -521,6 +548,7 @@ function HomeContent() {
   // for at most 2 sauces. Selecting a 3rd is a no-op rather than silently
   // accepted and later rejected server-side.
   const toggleSauce = (item: string) => {
+    markKebabStarted();
     if (sauces.includes(item)) {
       setSauces(sauces.filter((current) => current !== item));
     } else if (sauces.length < SAUCES_MAX) {

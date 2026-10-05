@@ -23,6 +23,12 @@ export const metadata: Metadata = {
   },
 };
 
+// Only loaded when both conditions hold: a measurement id is configured,
+// and this is a real production build — keeps local dev / preview / test
+// runs out of GA4 entirely, no env juggling required to avoid polluting data.
+const GA_MEASUREMENT_ID =
+  process.env.NODE_ENV === "production" ? process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID : undefined;
+
 export default function RootLayout({
   children,
 }: {
@@ -34,12 +40,21 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
-        <Script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8374059668336442"
-          crossOrigin="anonymous"
-          strategy="afterInteractive"
-        />
+        {GA_MEASUREMENT_ID && (
+          <>
+            <Script
+              async
+              src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+              strategy="afterInteractive"
+            />
+            <Script id="ga4-init" strategy="afterInteractive">
+              {`window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${GA_MEASUREMENT_ID}');`}
+            </Script>
+          </>
+        )}
       </head>
 
       <body className="min-h-full flex flex-col">

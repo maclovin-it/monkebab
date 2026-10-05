@@ -4,12 +4,17 @@ import { renderDesign } from "@/lib/design/render";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
-  const { size = '', bread = '', meat = '', vegetables = [], sauces = [] } = body as {
+  const { size = '', bread = '', meat = '', vegetables = [], sauces = [], gaClientId = '' } = body as {
     size?: string;
     bread?: string;
     meat?: string;
     vegetables?: string[];
     sauces?: string[];
+    /** GA4 client_id (lib/analytics/ga.ts getGaClientId()) — carried through
+     * to Stripe metadata so the server-side "purchase" event fired from the
+     * webhook on confirmed payment can attribute back to this visitor. Not
+     * personal data — an opaque analytics identifier, not a Stripe id. */
+    gaClientId?: string;
   };
 
   // The print file is generated server-side from these fields, never
@@ -64,6 +69,7 @@ export async function POST(request: Request) {
     vegetables: vegetablesStr,
     sauces: saucesStr,
     printFileUrl,
+    gaClientId,
   };
 
   console.log('[checkout] received body:', meta);

@@ -27,11 +27,18 @@ export interface RecordSaleParams {
  * or both checkout.session.completed and checkout.session.async_payment_succeeded
  * firing for the same session).
  *
+ * Returns whether this call actually inserted a new row (true) versus hit
+ * the UNIQUE conflict / an invalid selection (false) — this is also the
+ * idempotence signal app/api/webhook/route.ts uses to decide whether to
+ * fire the GA4 purchase event, so "was this session's sale recorded for
+ * the first time" has exactly one source of truth instead of a second,
+ * separate dedup mechanism.
+ *
  * Never throws into the caller for anything other than a missing/invalid
  * DATABASE_URL — callers should still wrap this in try/catch, since a stats
  * write failing must never break order fulfillment.
  */
-export async function recordSale(params: RecordSaleParams): Promise<void> {
+export async function recordSale(params: RecordSaleParams): Promise<boolean> {
   const selection: KebabSelection = {
     pain: params.bread ?? '',
     viande: params.meat ?? '',
@@ -45,7 +52,7 @@ export async function recordSale(params: RecordSaleParams): Promise<void> {
       stripeSessionId: params.stripeSessionId,
       errors: validation.errors,
     });
-    return;
+    return false;
   }
 
   const combinationKey = buildCombinationKey(selection);
@@ -57,9 +64,12 @@ export async function recordSale(params: RecordSaleParams): Promise<void> {
   const sauces = canonicalSauces(selection.sauces);
   const sql = getSql();
 
-  await sql`
+  const rows = (await sql`
     INSERT INTO orders (stripe_session_id, pain, viande, crudites, sauces, combination_key)
     VALUES (${params.stripeSessionId}, ${selection.pain}, ${selection.viande}, ${crudites}, ${sauces}, ${combinationKey})
     ON CONFLICT (stripe_session_id) DO NOTHING
-  `;
+    RETURNING id
+  `) as { id: number }[];
+
+  return rows.length > 0;
 }
