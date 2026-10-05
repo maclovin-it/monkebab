@@ -23,29 +23,44 @@ const anton = Anton({ subsets: ['latin'], weight: '400', display: 'swap' });
  * moment consent is denied/revoked, in case it was already loaded from an
  * earlier grant in this same page.
  */
+// A single explicit state machine instead of juggling an
+// undefined/null/ConsentChoice value alongside a separate boolean — every
+// one of the 4 states below maps to exactly one on-screen outcome, with no
+// room for the two pieces of state to disagree with each other:
+//   loading -> nothing shown yet (avoids an SSR/client mismatch; resolved
+//              by the mount effect below, before the first real render)
+//   unset   -> no stored choice: banner open, COOKIES tab hidden
+//   granted -> banner closed, COOKIES tab visible, gtag.js loads
+//   denied  -> banner closed, COOKIES tab visible, gtag.js stays off
+type UiState = 'loading' | 'unset' | ConsentChoice;
+
 export default function ConsentBanner() {
-  // null = not yet determined client-side (avoids an SSR/client mismatch —
-  // localStorage doesn't exist on the server). Resolved in the effect below,
-  // immediately on mount, before anything is shown.
-  const [consent, setConsent] = useState<ConsentChoice | null | undefined>(undefined);
-  const [bannerOpen, setBannerOpen] = useState(false);
+  const [uiState, setUiState] = useState<UiState>('loading');
+  // Separate from uiState on purpose: reopening the banner to change an
+  // already-made choice must hide the COOKIES tab and show the banner
+  // without touching the stored choice itself (still 'granted'/'denied'
+  // until the visitor actually picks again).
+  const [reopened, setReopened] = useState(false);
 
   useEffect(() => {
     const stored = readStoredConsent();
-    setConsent(stored);
-    setBannerOpen(stored === null);
-    setGaDisabled(stored !== 'granted');
+    const resolved: UiState = stored === 'granted' || stored === 'denied' ? stored : 'unset';
+    setUiState(resolved);
+    setGaDisabled(resolved !== 'granted');
   }, []);
 
   const choose = (choice: ConsentChoice) => {
     writeStoredConsent(choice);
-    setConsent(choice);
-    setBannerOpen(false);
+    setUiState(choice);
+    setReopened(false);
     setGaDisabled(choice !== 'granted');
   };
 
+  const bannerOpen = uiState === 'unset' || reopened;
+  const showCookiesTab = (uiState === 'granted' || uiState === 'denied') && !reopened;
+
   const scriptsEnabled =
-    process.env.NODE_ENV === 'production' && Boolean(GA_MEASUREMENT_ID) && consent === 'granted';
+    process.env.NODE_ENV === 'production' && Boolean(GA_MEASUREMENT_ID) && uiState === 'granted';
 
   return (
     <>
@@ -61,17 +76,18 @@ export default function ConsentBanner() {
         </>
       )}
 
-      {/* Small, always-present control to reopen the banner later — the
-          project has no footer to anchor this to (checked), so it's a
-          discreet fixed tab instead. Positioned clear of /tshirt's fixed
-          mobile COMMANDER bar (which spans the full width at the very
-          bottom on small screens). Hidden while the banner itself is open
-          (now also bottom-fixed) so the two never overlap each other. */}
-      {consent !== undefined && !bannerOpen && (
+      {/* Small, persistent control to reopen the banner and change an
+          already-made choice later — the project has no footer to anchor
+          this to (checked), so it's a discreet fixed tab instead. Visible
+          only once a real choice exists (granted/denied) and the banner
+          isn't currently open (first visit, or manually reopened) — see
+          the UiState machine above. Positioned clear of /tshirt's fixed
+          mobile COMMANDER bar. */}
+      {showCookiesTab && (
         <button
           type="button"
           className={`consentReopen ${anton.className}`}
-          onClick={() => setBannerOpen(true)}
+          onClick={() => setReopened(true)}
         >
           COOKIES
         </button>
