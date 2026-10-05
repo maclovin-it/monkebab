@@ -65,8 +65,9 @@ export default function ConsentBanner() {
           project has no footer to anchor this to (checked), so it's a
           discreet fixed tab instead. Positioned clear of /tshirt's fixed
           mobile COMMANDER bar (which spans the full width at the very
-          bottom on small screens). */}
-      {consent !== undefined && (
+          bottom on small screens). Hidden while the banner itself is open
+          (now also bottom-fixed) so the two never overlap each other. */}
+      {consent !== undefined && !bannerOpen && (
         <button
           type="button"
           className={`consentReopen ${anton.className}`}
@@ -96,12 +97,12 @@ export default function ConsentBanner() {
       <style jsx>{`
         .consentBanner {
           position: fixed;
-          top: 0;
+          bottom: 0;
           left: 0;
           right: 0;
           z-index: 2000;
           background: #050505;
-          border-bottom: 1px solid #666;
+          border-top: 1px solid #666;
           padding: 14px 20px;
           display: flex;
           align-items: center;
@@ -183,6 +184,12 @@ export default function ConsentBanner() {
 
         @media (max-width: 600px) {
           .consentBanner {
+            /* Clears /tshirt's fixed COMMANDER bar (height:60px, flush
+               with the bottom edge on small screens) — on pages without
+               that bar (e.g. the home page), this just leaves a small,
+               harmless gap under the banner instead of touching the very
+               edge. */
+            bottom: 60px;
             padding: 12px 14px;
             gap: 12px;
           }
