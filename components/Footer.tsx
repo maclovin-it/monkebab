@@ -1,12 +1,14 @@
 'use client';
 
+import Link from 'next/link';
 import { Anton } from 'next/font/google';
 
 const anton = Anton({ subsets: ['latin'], weight: '400', display: 'swap' });
 
 /**
- * A single, discreet "Contact" link — mounted once in app/layout.tsx so
- * it's present on every public page without touching any page's own JSX.
+ * A single, discreet link group — "Contact" + "Mentions légales" — mounted
+ * once in app/layout.tsx so it's present on every public page without
+ * touching any page's own JSX.
  *
  * Deliberately a small fixed corner tab, not a traditional in-flow footer
  * bar: the home page (app/page.tsx) uses a fixed-height CSS grid
@@ -21,16 +23,30 @@ const anton = Anton({ subsets: ['latin'], weight: '400', display: 'swap' });
 export default function Footer() {
   return (
     <>
-      <a href="mailto:hello@monkebab.xyz" className={`siteFooterContact ${anton.className}`}>
-        Contact
-      </a>
+      <div className={`siteFooter ${anton.className}`}>
+        <a href="mailto:hello@monkebab.xyz" className="siteFooterLink">
+          Contact
+        </a>
+        <span className="siteFooterSep" aria-hidden="true">
+          ·
+        </span>
+        <Link href="/mentions-legales" className="siteFooterLink">
+          Mentions légales
+        </Link>
+      </div>
 
       <style jsx>{`
-        .siteFooterContact {
+        .siteFooter {
           position: fixed;
           right: 12px;
           bottom: 16px;
           z-index: 1800;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .siteFooterLink {
           color: #fff;
           opacity: 0.5;
           font-size: 0.68rem;
@@ -41,12 +57,18 @@ export default function Footer() {
           transition: opacity 0.2s ease;
         }
 
-        .siteFooterContact:hover {
+        .siteFooterLink:hover {
           opacity: 0.9;
         }
 
+        .siteFooterSep {
+          color: #fff;
+          opacity: 0.3;
+          font-size: 0.68rem;
+        }
+
         @media (max-width: 600px) {
-          .siteFooterContact {
+          .siteFooter {
             /* Clears /tshirt's fixed COMMANDER bar (height:60px, flush
                with the bottom edge on small screens). */
             bottom: 72px;
