@@ -126,7 +126,8 @@ export async function POST(request: Request) {
       },
       custom_text: {
         shipping_address: {
-          message: "Fabriqué à la demande · Expédié sous 3–5 jours ouvrés 🚚",
+          message:
+            "Fabriqué à la demande · Livraison sous 12 jours ouvrés max. en France, 15 jours en Belgique et au Luxembourg 🚚",
         },
       },
       metadata: meta,
