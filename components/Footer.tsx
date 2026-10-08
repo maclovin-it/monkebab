@@ -6,7 +6,7 @@ import { Anton } from 'next/font/google';
 const anton = Anton({ subsets: ['latin'], weight: '400', display: 'swap' });
 
 /**
- * A single, discreet link group — "Contact" + the three legal pages —
+ * A single, discreet link group — "Contact" + the four legal pages —
  * mounted once in app/layout.tsx so it's present on every public page
  * without touching any page's own JSX.
  *
@@ -21,12 +21,19 @@ const anton = Anton({ subsets: ['latin'], weight: '400', display: 'swap' });
  * /tshirt's fixed COMMANDER bar.
  *
  * Wraps onto a second line (flex-wrap + a width cap) rather than running
- * off the left edge of the screen now that there are 4 links instead of 1 —
- * verified at 375px and 414px widths.
+ * off the left edge of the screen now that there are 5 links instead of 1.
+ * Carries its own opaque background (matching the consent banner's
+ * "COOKIES" reopen chip in ConsentBanner.tsx) rather than bare floating
+ * text — needed since 2 wrapped lines on narrow phones can sit directly
+ * over /tshirt's in-flow "Livraison incluse" copy just above the fixed
+ * COMMANDER bar; bare text there was unreadable (both bled into each
+ * other), a solid chip just cleanly covers whatever's behind it instead.
+ * Verified at 360px/375px/414px widths, on both / and /tshirt.
  */
 const LEGAL_LINKS: Array<{ href: string; label: string }> = [
   { href: '/mentions-legales', label: 'Mentions légales' },
   { href: '/cgv', label: 'CGV' },
+  { href: '/livraison-retours', label: 'Livraison' },
   { href: '/politique-de-confidentialite', label: 'Confidentialité' },
 ];
 
@@ -59,8 +66,11 @@ export default function Footer() {
           align-items: center;
           flex-wrap: wrap;
           justify-content: flex-end;
-          gap: 8px;
+          gap: 6px 8px;
           max-width: calc(100vw - 24px);
+          background: #050505;
+          border: 1px solid #666;
+          padding: 6px 10px;
         }
 
         .siteFooterItem {
