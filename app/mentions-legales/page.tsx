@@ -17,6 +17,12 @@ export default function MentionsLegalesPage() {
       </header>
 
       <div className="content">
+        <p className="intro">
+          Ces mentions légales identifient l&rsquo;éditeur du site Mon Kebab (monkebab.xyz). Pour les conditions de
+          vente, voir nos <Link href="/cgv">CGV</Link> ; pour le détail des données personnelles traitées, voir notre{' '}
+          <Link href="/politique-de-confidentialite">politique de confidentialité</Link>.
+        </p>
+
         <section className="section">
           <h2>Éditeur du site</h2>
           <p>
@@ -122,8 +128,8 @@ export default function MentionsLegalesPage() {
 
         h1 {
           margin: 0;
-          font-size: clamp(1.4rem, 4vw, 2.2rem);
-          letter-spacing: 0.14em;
+          font-size: clamp(1.2rem, 3.4vw, 2.2rem);
+          letter-spacing: 0.12em;
           text-align: center;
           flex: 1;
         }
@@ -136,6 +142,20 @@ export default function MentionsLegalesPage() {
           max-width: 680px;
           margin: 0 auto;
           font-family: var(--font-geist-sans), Arial, sans-serif;
+        }
+
+        .intro {
+          margin: 0 0 36px;
+          font-size: 0.92rem;
+          line-height: 1.7;
+          color: #fff;
+          opacity: 0.85;
+        }
+
+        .intro a {
+          color: #fff;
+          text-decoration: underline;
+          text-underline-offset: 2px;
         }
 
         .section {
@@ -184,7 +204,7 @@ export default function MentionsLegalesPage() {
           }
 
           h1 {
-            font-size: 1.3rem;
+            font-size: 1.05rem;
           }
 
           .backLink,

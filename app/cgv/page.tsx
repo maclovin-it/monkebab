@@ -20,7 +20,9 @@ export default function CgvPage() {
         <p className="intro">
           Les présentes conditions générales de vente (les &laquo;&nbsp;CGV&nbsp;&raquo;) s&rsquo;appliquent à toute
           commande passée sur le site Mon Kebab (monkebab.xyz) par un client consommateur. Passer commande implique
-          l&rsquo;acceptation pleine et entière des présentes CGV.
+          l&rsquo;acceptation pleine et entière des présentes CGV. Elles sont complétées par nos{' '}
+          <Link href="/mentions-legales">mentions légales</Link> et notre{' '}
+          <Link href="/politique-de-confidentialite">politique de confidentialité</Link>.
         </p>
 
         <section className="section">
@@ -255,6 +257,12 @@ export default function CgvPage() {
           line-height: 1.7;
           color: #fff;
           opacity: 0.85;
+        }
+
+        .intro a {
+          color: #fff;
+          text-decoration: underline;
+          text-underline-offset: 2px;
         }
 
         .section {
