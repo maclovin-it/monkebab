@@ -88,22 +88,57 @@ export default function CgvPage() {
         </section>
 
         <section className="section">
-          <h2>6. Fabrication et expédition</h2>
+          <h2>6. Fabrication, expédition et livraison</h2>
           <p>
             Chaque t-shirt est fabriqué à la demande, après confirmation du paiement, par notre partenaire de
-            production et d&rsquo;impression Printful. Le vendeur s&rsquo;efforce d&rsquo;expédier chaque commande
-            sous 3 à 5 jours ouvrés à compter de la confirmation du paiement, tel qu&rsquo;indiqué au client lors de la
-            commande.
+            production et d&rsquo;impression Printful. Le délai indiqué ci-dessous couvre l&rsquo;ensemble du
+            processus, de la fabrication par Printful jusqu&rsquo;à la livraison à l&rsquo;adresse du client.
           </p>
-          <p className="placeholder">
-            Délai de livraison total (fabrication + transport) selon la destination : [à confirmer]
+          <p>
+            Sauf circonstance exceptionnelle dûment portée à la connaissance du client, la commande est livrée au
+            plus tard :
             <br />
-            Politique en cas de colis perdu, endommagé ou non livré : [à confirmer]
+            — 12 jours ouvrés après la confirmation du paiement, pour la France métropolitaine ;
+            <br />
+            — 15 jours ouvrés après la confirmation du paiement, pour la Belgique et le Luxembourg.
+          </p>
+          <p>
+            Conformément à l&rsquo;article L216-1 du Code de la consommation, à défaut de livraison dans ce délai, le
+            client peut mettre en demeure le vendeur de livrer dans un délai supplémentaire raisonnable. Si le
+            vendeur ne s&rsquo;exécute pas dans ce délai supplémentaire, le client peut résoudre la vente,
+            conformément aux articles L216-2 et L216-3 du Code de la consommation, et obtenir le remboursement
+            intégral des sommes versées au plus tard dans les quatorze jours suivant la résolution.
           </p>
         </section>
 
         <section className="section">
-          <h2>7. Droit de rétractation</h2>
+          <h2>7. Commandes retardées, perdues, endommagées ou non conformes</h2>
+          <p>
+            Si la commande n&rsquo;est pas livrée dans le délai indiqué à l&rsquo;article 6, si le colis semble
+            perdu, ou si le produit reçu est endommagé, mal imprimé ou non conforme à la commande, le client est
+            invité à contacter le vendeur à l&rsquo;adresse <a href="mailto:hello@monkebab.xyz">hello@monkebab.xyz</a>,
+            si possible en joignant une photo du produit ou du colis reçu.
+          </p>
+          <p>
+            Le vendeur se charge des démarches nécessaires auprès de Printful pour résoudre la situation. Selon les
+            circonstances, et sans préjudice des garanties légales mentionnées à l&rsquo;article 9, le client peut
+            obtenir le remplacement du produit, sa mise en conformité, ou le remboursement de la commande.
+          </p>
+          <p>
+            Le fait que le suivi du transporteur indique que le colis a été livré ne prive pas le client de ses
+            droits : si le client affirme ne pas avoir reçu son colis, le vendeur examine la situation au cas par
+            cas, notamment auprès du transporteur et de Printful, sans exclure par principe une réexpédition ou un
+            remboursement.
+          </p>
+          <p>
+            Ces démarches sont sans incidence sur les délais dont dispose le client pour faire valoir les garanties
+            légales mentionnées à l&rsquo;article 9, lesquelles demeurent applicables quelle que soit l&rsquo;issue de
+            la réclamation ci-dessus.
+          </p>
+        </section>
+
+        <section className="section">
+          <h2>8. Droit de rétractation</h2>
           <p>
             Conformément à l&rsquo;article L221-28, 3° du Code de la consommation, le droit de rétractation de 14
             jours prévu pour les ventes à distance ne s&rsquo;applique pas aux biens confectionnés selon les
@@ -114,7 +149,7 @@ export default function CgvPage() {
         </section>
 
         <section className="section">
-          <h2>8. Garanties légales</h2>
+          <h2>9. Garanties légales</h2>
           <p>
             L&rsquo;absence de droit de rétractation est sans incidence sur les garanties légales, qui
             s&rsquo;appliquent à toute commande quel que soit le caractère personnalisé du produit :
@@ -133,7 +168,7 @@ export default function CgvPage() {
         </section>
 
         <section className="section">
-          <h2>9. Réclamations et service client</h2>
+          <h2>10. Réclamations et service client</h2>
           <p>
             Pour toute question, réclamation ou demande relative à une commande, le client peut contacter le vendeur à
             l&rsquo;adresse <a href="mailto:hello@monkebab.xyz">hello@monkebab.xyz</a>.
@@ -141,7 +176,7 @@ export default function CgvPage() {
         </section>
 
         <section className="section">
-          <h2>10. Médiation de la consommation</h2>
+          <h2>11. Médiation de la consommation</h2>
           <p>
             Conformément aux articles L616-1 et R616-1 du Code de la consommation, tout consommateur a le droit de
             recourir gratuitement à un médiateur de la consommation en vue de la résolution amiable d&rsquo;un litige
@@ -154,7 +189,7 @@ export default function CgvPage() {
         </section>
 
         <section className="section">
-          <h2>11. Droit applicable et litiges</h2>
+          <h2>12. Droit applicable et litiges</h2>
           <p>
             Les présentes CGV sont soumises au droit français. Pour les clients résidant dans un autre État membre de
             l&rsquo;Union européenne (Belgique, Luxembourg), les dispositions impératives de protection du
