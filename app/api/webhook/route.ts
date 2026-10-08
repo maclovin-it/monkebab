@@ -17,6 +17,11 @@ import {
 import { sendPurchaseEvent } from "@/lib/analytics/measurement-protocol";
 
 const ORDER_CONFIRMATION_FROM = "Mon Kebab <commande@monkebab.xyz>";
+// Real, human-monitored mailbox (OVH Zimbra) — a customer hitting "Reply"
+// lands there instead of commande@monkebab.xyz, whose domain is verified
+// with Resend for sending only (receiving disabled), so an unrouted reply
+// would otherwise bounce.
+const ORDER_CONFIRMATION_REPLY_TO = "hello@monkebab.xyz";
 
 // Generic placeholder mockup, used only as a fallback for the rare session
 // that has no printFileUrl in its metadata.
@@ -291,6 +296,7 @@ async function runFulfillment(session: Stripe.Checkout.Session) {
 
     const { error } = await getResend().emails.send({
       from: ORDER_CONFIRMATION_FROM,
+      replyTo: ORDER_CONFIRMATION_REPLY_TO,
       to: email,
       subject: ORDER_CONFIRMATION_SUBJECT,
       html: renderOrderConfirmationHtml(emailData),

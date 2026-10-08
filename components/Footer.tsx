@@ -1,0 +1,58 @@
+'use client';
+
+import { Anton } from 'next/font/google';
+
+const anton = Anton({ subsets: ['latin'], weight: '400', display: 'swap' });
+
+/**
+ * A single, discreet "Contact" link — mounted once in app/layout.tsx so
+ * it's present on every public page without touching any page's own JSX.
+ *
+ * Deliberately a small fixed corner tab, not a traditional in-flow footer
+ * bar: the home page (app/page.tsx) uses a fixed-height CSS grid
+ * (height:100vh, grid-template-rows: auto minmax(0,1fr)) with no spare
+ * vertical space for extra flow content on desktop, and inserting a real
+ * footer there risks breaking that kiosk layout. This mirrors the same
+ * fixed-corner-tab pattern already used and verified for the consent
+ * banner's "COOKIES" reopen control (components/ConsentBanner.tsx) —
+ * opposite corner, lower z-index, same mobile bottom offset to clear
+ * /tshirt's fixed COMMANDER bar.
+ */
+export default function Footer() {
+  return (
+    <>
+      <a href="mailto:hello@monkebab.xyz" className={`siteFooterContact ${anton.className}`}>
+        Contact
+      </a>
+
+      <style jsx>{`
+        .siteFooterContact {
+          position: fixed;
+          right: 12px;
+          bottom: 16px;
+          z-index: 1800;
+          color: #fff;
+          opacity: 0.5;
+          font-size: 0.68rem;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          text-decoration: underline;
+          text-underline-offset: 2px;
+          transition: opacity 0.2s ease;
+        }
+
+        .siteFooterContact:hover {
+          opacity: 0.9;
+        }
+
+        @media (max-width: 600px) {
+          .siteFooterContact {
+            /* Clears /tshirt's fixed COMMANDER bar (height:60px, flush
+               with the bottom edge on small screens). */
+            bottom: 72px;
+          }
+        }
+      `}</style>
+    </>
+  );
+}

@@ -13,6 +13,9 @@ import {
 const processedShipments = new Set<number>();
 
 const ORDER_SHIPPED_FROM = "Mon Kebab <commande@monkebab.xyz>";
+// Real, human-monitored mailbox (OVH Zimbra) — see the matching constant in
+// app/api/webhook/route.ts for why this isn't commande@monkebab.xyz itself.
+const ORDER_SHIPPED_REPLY_TO = "hello@monkebab.xyz";
 
 interface PackageShippedPayload {
   type?: string;
@@ -92,6 +95,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ sec
 
     const { error } = await getResend().emails.send({
       from: ORDER_SHIPPED_FROM,
+      replyTo: ORDER_SHIPPED_REPLY_TO,
       to: recipientEmail,
       subject: ORDER_SHIPPED_SUBJECT,
       html: renderOrderShippedHtml(emailData),

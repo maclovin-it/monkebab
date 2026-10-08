@@ -178,7 +178,7 @@ export function renderOrderShippedHtml(data: OrderShippedData): string {
           <!-- Footer -->
           <tr>
             <td class="gutter" style="padding:24px 32px 30px 32px;border-top:1px solid ${BORDER};font-family:${BODY_FONT};font-size:12px;line-height:19px;color:${MUTED};">
-              Une question sur ta livraison ? <a href="mailto:contact@monkebab.xyz" style="color:${WHITE};text-decoration:underline;">contact@monkebab.xyz</a>
+              Une question sur ta livraison ? <a href="mailto:hello@monkebab.xyz" style="color:${WHITE};text-decoration:underline;">hello@monkebab.xyz</a>
             </td>
           </tr>
 
@@ -217,7 +217,7 @@ export function renderOrderShippedText(data: OrderShippedData): string {
     '',
     `Suivre mon colis : ${data.trackingUrl}`,
     '',
-    'Une question sur ta livraison ? contact@monkebab.xyz',
+    'Une question sur ta livraison ? hello@monkebab.xyz',
   );
 
   return lines.join('\n');

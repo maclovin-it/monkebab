@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ConsentBanner from "@/components/ConsentBanner";
+import Footer from "@/components/Footer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -38,6 +39,10 @@ export default function RootLayout({
             consent banner/reopen control — see components/ConsentBanner.tsx. */}
         <ConsentBanner />
         {children}
+        {/* Discreet "Contact" link, present on every page — see
+            components/Footer.tsx for why it's a fixed corner tab rather
+            than a traditional in-flow footer. */}
+        <Footer />
       </body>
     </html>
   );

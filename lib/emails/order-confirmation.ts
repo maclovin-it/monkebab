@@ -237,7 +237,7 @@ ${mockupBlock(mockupUrl)}
           <tr>
             <td class="gutter" style="padding:24px 32px 30px 32px;border-top:1px solid ${BORDER};font-family:${BODY_FONT};font-size:12px;line-height:19px;color:${MUTED};">
               Tu recevras un nouvel e-mail avec ton lien de suivi dès que ton t-shirt sera expédié.<br />
-              Une question ? <a href="mailto:contact@monkebab.xyz" style="color:${WHITE};text-decoration:underline;">contact@monkebab.xyz</a>
+              Une question ? <a href="mailto:hello@monkebab.xyz" style="color:${WHITE};text-decoration:underline;">hello@monkebab.xyz</a>
             </td>
           </tr>
 
@@ -281,7 +281,7 @@ export function renderOrderConfirmationText(data: OrderConfirmationData): string
     data.ctaUrl ?? 'https://monkebab.xyz',
     '',
     'Tu recevras un nouvel e-mail avec ton lien de suivi dès que ton t-shirt sera expédié.',
-    'Une question ? contact@monkebab.xyz',
+    'Une question ? hello@monkebab.xyz',
   );
 
   return lines.join('\n');
