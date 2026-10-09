@@ -129,28 +129,119 @@ export async function markShippedBestEffort(printfulOrderId: string): Promise<vo
   }
 }
 
-export interface RecordShipmentNotificationParams {
+export interface ClaimShipmentNotificationParams {
   printfulShipmentId: number;
   printfulOrderId: string;
 }
 
-/** Persistent, race-safe idempotency gate for the "order shipped" email
- * (see db/migrations/0003_create_shipment_notifications.sql) — replaces an
- * in-memory Set that didn't survive a serverless cold start. Returns true
- * only for the call that actually wins the INSERT, i.e. "this is the first
- * time we've seen this shipment, go ahead and send" — exactly once per
- * shipment id, even across concurrent webhook deliveries or restarts. A
- * genuinely different shipment on the same order (a multi-package order)
- * gets its own row and its own true, so this never suppresses a real
- * second shipment. Throws on a database error (e.g. the migration not yet
- * applied) — the caller decides whether to fail open or closed. */
-export async function recordShipmentNotification(params: RecordShipmentNotificationParams): Promise<boolean> {
+export type ShipmentNotificationClaim = 'claimed' | 'already_sent' | 'in_progress';
+
+// How long a row can sit at status 'pending' before a later delivery is
+// allowed to reclaim it. Must comfortably exceed how long a single webhook
+// invocation can plausibly run (Resend call + our own writes) — 2 minutes
+// is generous slack above that, not a tight timeout, so a redelivery can
+// only mistake a slow-but-live attempt for a crashed one in a genuinely
+// pathological case.
+const STALE_CLAIM_SQL_INTERVAL = '2 minutes';
+
+/**
+ * Atomically claims the right to send the "order shipped" email for one
+ * Printful shipment — see db/migrations/0003_create_shipment_notifications.sql
+ * for the full reasoning. A row existing is *not* the same fact as "the
+ * email was sent": this only reserves the attempt; markShipmentNotificationSent
+ * / ...Failed (below) are what settle it, called from the webhook route
+ * once the Resend call actually resolves.
+ *
+ * Three outcomes:
+ * - 'claimed': either the first time this shipment has ever been seen, or
+ *   a previous attempt ended in 'failed' (Resend rejected/threw), or a
+ *   previous attempt is stuck at 'pending' for longer than
+ *   STALE_CLAIM_SQL_INTERVAL (the function likely crashed mid-flight,
+ *   between claiming and settling) — in every case, go ahead and send.
+ * - 'already_sent': a previous attempt already confirmed delivery to
+ *   Resend. Skip — this is the common case for a genuine webhook replay
+ *   hours or days later.
+ * - 'in_progress': another delivery is actively mid-flight for this exact
+ *   shipment right now (status 'pending', still fresh). Skip and trust it
+ *   to finish rather than racing it — see the staleness window above.
+ *
+ * Insert-first, then a guarded reclaim UPDATE whose WHERE clause only
+ * matches a row that's genuinely 'failed' or stale-'pending', mirrors the
+ * ON-CONFLICT-as-dedup-signal pattern already used by recordSale() and
+ * getOrCreateFulfillment() elsewhere in this codebase — extended with a
+ * status column because, unlike those two, "a row exists" alone isn't
+ * enough information here. The reclaim UPDATE's WHERE clause is what
+ * keeps two concurrent reclaim attempts from both succeeding: Postgres
+ * serializes the two UPDATEs on the same row, and the second one's WHERE
+ * clause no longer matches once the first has already flipped the status.
+ *
+ * Throws on a database error (e.g. the migration not yet applied) — the
+ * caller decides whether to fail open or closed.
+ */
+export async function claimShipmentNotification(
+  params: ClaimShipmentNotificationParams
+): Promise<ShipmentNotificationClaim> {
   const sql = getSql();
-  const rows = (await sql`
-    INSERT INTO shipment_notifications (printful_shipment_id, printful_order_id)
-    VALUES (${params.printfulShipmentId}, ${params.printfulOrderId})
+
+  const inserted = (await sql`
+    INSERT INTO shipment_notifications (printful_shipment_id, printful_order_id, status, attempts)
+    VALUES (${params.printfulShipmentId}, ${params.printfulOrderId}, 'pending', 1)
     ON CONFLICT (printful_shipment_id) DO NOTHING
     RETURNING id
   `) as { id: number }[];
-  return rows.length > 0;
+
+  if (inserted.length > 0) return 'claimed';
+
+  const reclaimed = (await sql`
+    UPDATE shipment_notifications
+    SET status = 'pending', attempts = attempts + 1, last_error = NULL, updated_at = now()
+    WHERE printful_shipment_id = ${params.printfulShipmentId}
+      AND (status = 'failed' OR (status = 'pending' AND updated_at < now() - ${STALE_CLAIM_SQL_INTERVAL}::interval))
+    RETURNING id
+  `) as { id: number }[];
+
+  if (reclaimed.length > 0) return 'claimed';
+
+  const rows = (await sql`
+    SELECT status FROM shipment_notifications WHERE printful_shipment_id = ${params.printfulShipmentId}
+  `) as { status: string }[];
+
+  return rows[0]?.status === 'sent' ? 'already_sent' : 'in_progress';
+}
+
+/** Best-effort, settles a claimShipmentNotification() 'claimed' outcome
+ * once Resend has confirmed the email was actually accepted. Never throws
+ * into the caller — mirrors markShippedBestEffort's contract. */
+export async function markShipmentNotificationSent(printfulShipmentId: number): Promise<void> {
+  try {
+    const sql = getSql();
+    await sql`
+      UPDATE shipment_notifications SET status = 'sent', updated_at = now()
+      WHERE printful_shipment_id = ${printfulShipmentId}
+    `;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error('[fulfillment] failed to mark shipment notification sent', message);
+  }
+}
+
+/** Best-effort, settles a claimShipmentNotification() 'claimed' outcome as
+ * failed — leaves the row reclaimable by a later webhook redelivery
+ * (see claimShipmentNotification's reclaim WHERE clause) instead of stuck
+ * at 'pending' until the staleness window expires. Never throws into the
+ * caller. */
+export async function markShipmentNotificationFailed(
+  printfulShipmentId: number,
+  errorMessage: string
+): Promise<void> {
+  try {
+    const sql = getSql();
+    await sql`
+      UPDATE shipment_notifications SET status = 'failed', last_error = ${errorMessage}, updated_at = now()
+      WHERE printful_shipment_id = ${printfulShipmentId}
+    `;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error('[fulfillment] failed to mark shipment notification failed', message);
+  }
 }
