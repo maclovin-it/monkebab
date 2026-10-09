@@ -134,8 +134,18 @@ export async function POST(request: Request) {
       payment_intent_data: {
         metadata: meta,
       },
-      success_url: `${baseUrl}/success`,
-      cancel_url: `${baseUrl}/cancel`,
+      // {CHECKOUT_SESSION_ID} is a literal Stripe placeholder, substituted at
+      // redirect time — lets /success verify server-side (via
+      // stripe.checkout.sessions.retrieve) that this visitor actually
+      // completed this exact session, instead of trusting a bare GET.
+      success_url: `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
+      // Carries the kebab composition back to /cancel so a customer who
+      // backs out of payment doesn't lose it — same designParams already
+      // built above for printFileUrl (pain/viande/crudites/sauces only,
+      // never anything from Stripe: this URL is fixed before the customer
+      // has even reached Stripe's payment form, so there's nothing
+      // sensitive to carry).
+      cancel_url: `${baseUrl}/cancel?${designParams.toString()}`,
     });
 
     return Response.json({ url: session.url });

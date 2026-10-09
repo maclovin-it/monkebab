@@ -128,3 +128,29 @@ export async function markShippedBestEffort(printfulOrderId: string): Promise<vo
     console.error('[fulfillment] failed to mark shipped', message);
   }
 }
+
+export interface RecordShipmentNotificationParams {
+  printfulShipmentId: number;
+  printfulOrderId: string;
+}
+
+/** Persistent, race-safe idempotency gate for the "order shipped" email
+ * (see db/migrations/0003_create_shipment_notifications.sql) — replaces an
+ * in-memory Set that didn't survive a serverless cold start. Returns true
+ * only for the call that actually wins the INSERT, i.e. "this is the first
+ * time we've seen this shipment, go ahead and send" — exactly once per
+ * shipment id, even across concurrent webhook deliveries or restarts. A
+ * genuinely different shipment on the same order (a multi-package order)
+ * gets its own row and its own true, so this never suppresses a real
+ * second shipment. Throws on a database error (e.g. the migration not yet
+ * applied) — the caller decides whether to fail open or closed. */
+export async function recordShipmentNotification(params: RecordShipmentNotificationParams): Promise<boolean> {
+  const sql = getSql();
+  const rows = (await sql`
+    INSERT INTO shipment_notifications (printful_shipment_id, printful_order_id)
+    VALUES (${params.printfulShipmentId}, ${params.printfulOrderId})
+    ON CONFLICT (printful_shipment_id) DO NOTHING
+    RETURNING id
+  `) as { id: number }[];
+  return rows.length > 0;
+}

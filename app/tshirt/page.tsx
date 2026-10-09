@@ -192,6 +192,17 @@ function TshirtContent() {
             <span className="orderInfoMain">Livraison incluse</span>
             <span className="orderInfoSub">Chaque t-shirt est imprimé spécialement pour toi.</span>
           </div>
+
+          {/* Precontractual disclosure right next to the purchase action —
+              not just reachable via the footer's small corner link (see
+              app/cgv/page.tsx article 8). Made-to-order goods fall under the
+              L221-28 3° withdrawal exception; this is the one place in the
+              funnel that has to say so before the customer pays. */}
+          <p className="legalNote">
+            T-shirt personnalisé, fabriqué à la demande : le droit de rétractation de 14 jours ne s&rsquo;applique pas
+            une fois la commande validée, conformément à la loi. <Link href="/cgv">CGV</Link> ·{' '}
+            <Link href="/livraison-retours">Livraison et retours</Link>
+          </p>
         </div>
       </div>
 
@@ -505,6 +516,23 @@ function TshirtContent() {
           opacity: 0.45;
         }
 
+        .legalNote {
+          margin: 10px 0 0;
+          padding-top: 10px;
+          border-top: 1px solid #2e2e2e;
+          font-size: 0.66rem;
+          line-height: 1.5;
+          letter-spacing: 0.02em;
+          text-align: center;
+          opacity: 0.5;
+        }
+
+        .legalNote :global(a) {
+          color: #fff;
+          text-decoration: underline;
+          text-underline-offset: 2px;
+        }
+
         .sizeGuideDialog {
           margin: auto;
           background: #000;
@@ -682,6 +710,18 @@ function TshirtContent() {
             border-bottom: none;
             height: 60px;
             font-size: 1rem;
+          }
+
+          /* .page's 88px bottom padding only clears the fixed COMMANDER bar
+             (60px). On mobile the site-wide footer (components/Footer.tsx)
+             sits just above it as its own fixed, opaque chip — reaching up
+             to ~2 lines tall now that it carries 5 links — and without this,
+             .legalNote (the last piece of in-flow content, and the one
+             carrying the CGV/rétractation disclosure this note exists for)
+             would end up permanently hidden behind that chip instead of
+             scrollable into view above it. Verified at 360-414px widths. */
+          .legalNote {
+            margin-bottom: 84px;
           }
         }
       `}</style>

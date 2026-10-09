@@ -1,19 +1,42 @@
+'use client';
+
+import { Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Anton } from 'next/font/google';
 
 const anton = Anton({ subsets: ['latin'], weight: '400', display: 'swap' });
 
-export default function CancelPage() {
+function CancelContent() {
+  const searchParams = useSearchParams();
+  // The kebab composition (pain/viande/crudites/sauces — never anything
+  // from Stripe) was already attached to cancel_url when the Checkout
+  // session was created, server-side, before the customer ever reached
+  // Stripe's payment form (see app/api/checkout/route.ts). Forwarding the
+  // same query string to /tshirt mirrors its own "← RETOUR" backHref, so a
+  // customer who backs out of payment doesn't have to recompose from
+  // scratch.
+  const query = searchParams.toString();
+  const backHref = query ? `/tshirt?${query}` : '/tshirt';
+
   return (
     <main className={anton.className} style={styles.page}>
       <div style={styles.card}>
         <h1 style={styles.title}>Commande annulée</h1>
-        <p style={styles.text}>Aucun paiement n'a été effectué.</p>
-        <Link href="/tshirt" style={styles.btn}>
+        <p style={styles.text}>Aucun paiement n&rsquo;a été effectué.</p>
+        <Link href={backHref} style={styles.btn}>
           Retour au t-shirt
         </Link>
       </div>
     </main>
+  );
+}
+
+export default function CancelPage() {
+  return (
+    <Suspense fallback={<div style={{ background: '#000', minHeight: '100vh' }} />}>
+      <CancelContent />
+    </Suspense>
   );
 }
 
