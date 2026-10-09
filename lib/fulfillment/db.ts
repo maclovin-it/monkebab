@@ -245,3 +245,55 @@ export async function markShipmentNotificationFailed(
     console.error('[fulfillment] failed to mark shipment notification failed', message);
   }
 }
+
+export interface ReclaimableShipmentNotification {
+  printfulShipmentId: number;
+  printfulOrderId: string;
+  status: string;
+  attempts: number;
+  lastError: string | null;
+  updatedAt: string;
+}
+
+interface ReclaimableShipmentNotificationRow {
+  printful_shipment_id: number;
+  printful_order_id: string;
+  status: string;
+  attempts: number;
+  last_error: string | null;
+  updated_at: string;
+}
+
+/** Read-only. Lists every shipment_notifications row that
+ * claimShipmentNotification() would currently treat as reclaimable: a
+ * genuine 'failed' row, or a 'pending' row stuck past the staleness
+ * window (STALE_CLAIM_SQL_INTERVAL) — the function most likely crashed
+ * mid-flight and never reached markShipmentNotificationSent/...Failed.
+ *
+ * This is the answer to "how does a stuck 'pending' row get noticed":
+ * unlike a 'failed' row (which triggers sendShipmentNotificationFailedAlert
+ * the moment it happens), a crash prevents the code from ever reaching an
+ * alert call — there's nothing left running to send one. So this is
+ * checked on demand instead (via `npx tsx
+ * scripts/retry-shipment-notification.ts --list`), not automatically on a
+ * schedule — deliberately no cron/sweep job for this, see that script's
+ * own doc comment. Throws on a database error; callers of this (the
+ * script) are expected to let that surface directly. */
+export async function listReclaimableShipmentNotifications(): Promise<ReclaimableShipmentNotification[]> {
+  const sql = getSql();
+  const rows = (await sql`
+    SELECT printful_shipment_id, printful_order_id, status, attempts, last_error, updated_at
+    FROM shipment_notifications
+    WHERE status = 'failed' OR (status = 'pending' AND updated_at < now() - ${STALE_CLAIM_SQL_INTERVAL}::interval)
+    ORDER BY updated_at ASC
+  `) as ReclaimableShipmentNotificationRow[];
+
+  return rows.map((row) => ({
+    printfulShipmentId: row.printful_shipment_id,
+    printfulOrderId: row.printful_order_id,
+    status: row.status,
+    attempts: row.attempts,
+    lastError: row.last_error,
+    updatedAt: row.updated_at,
+  }));
+}
